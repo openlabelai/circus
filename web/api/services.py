@@ -70,9 +70,17 @@ def _db_task_to_circus(task) -> CircusTask:
     )
 
 
+def _ensure_devices():
+    """Auto-refresh device pool if empty."""
+    pool = get_pool()
+    if not pool.list_all():
+        asyncio.run(pool.refresh())
+
+
 def run_task_on_device(task, serial: str | None = None) -> dict:
     config = get_config()
     pool = get_pool()
+    _ensure_devices()
     circus_task = _db_task_to_circus(task)
     runner = TaskRunner(pool, config)
     result = asyncio.run(runner.run(circus_task, serial=serial))
@@ -91,6 +99,7 @@ def run_task_on_device(task, serial: str | None = None) -> dict:
 def run_task_on_all(task, device_filter: list[str] | None = None) -> dict:
     config = get_config()
     pool = get_pool()
+    _ensure_devices()
     circus_task = _db_task_to_circus(task)
     executor = ParallelExecutor(pool, config, store_results=False)
     summary = asyncio.run(executor.run_on_all(circus_task, device_filter=device_filter))

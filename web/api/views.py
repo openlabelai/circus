@@ -133,7 +133,10 @@ class TaskViewSet(viewsets.ModelViewSet):
         task = self.get_object()
         device_serial = request.data.get("device_serial", None)
         from api.services import run_task_on_device
-        result_data = run_task_on_device(task, device_serial)
+        try:
+            result_data = run_task_on_device(task, device_serial)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         # Save to DB
         TaskResult.objects.create(
             task_id=result_data["task_id"],
@@ -153,7 +156,10 @@ class TaskViewSet(viewsets.ModelViewSet):
         task = self.get_object()
         device_filter = request.data.get("device_filter", None)
         from api.services import run_task_on_all
-        summary = run_task_on_all(task, device_filter)
+        try:
+            summary = run_task_on_all(task, device_filter)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         # Save each result to DB
         for r in summary.get("results", []):
             TaskResult.objects.create(
