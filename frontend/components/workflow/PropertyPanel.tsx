@@ -59,6 +59,10 @@ export default function PropertyPanel({ block, onChange }: Props) {
         {block.action === "repeat" && <RepeatProps block={block} onChange={onChange} />}
         {block.action === "while" && <WhileProps block={block} onChange={onChange} />}
         {block.action === "try" && <p className="text-xs text-gray-500">Drag actions into the Try and On Error sections.</p>}
+        {block.action === "assert" && <AssertProps block={block} onChange={onChange} />}
+        {block.action === "wait_gone" && <WaitGoneProps block={block} onChange={onChange} />}
+        {block.action === "clear" && <ClearProps block={block} onChange={onChange} />}
+        {block.action === "random_sleep" && <RandomSleepProps block={block} onChange={onChange} />}
       </div>
     </div>
   );
@@ -309,6 +313,71 @@ function WhileProps({ block, onChange }: SubProps) {
       <Field label="Max Iterations">
         <input type="number" min="1" className={inputClass} value={block.max_iterations ?? 100} onChange={(e) => onChange({ max_iterations: Number(e.target.value) })} />
       </Field>
+    </>
+  );
+}
+
+function AssertProps({ block, onChange }: SubProps) {
+  return (
+    <>
+      <p className="text-xs text-gray-500 mb-2">Fail the task if a condition is not met.</p>
+      <ConditionEditor
+        condition={block.condition || { type: "element_exists" }}
+        onChange={(condition) => onChange({ condition })}
+      />
+      <Field label="Error Message (optional)">
+        <input className={inputClass} placeholder="Assertion failed" value={block.message || ""} onChange={(e) => onChange({ message: e.target.value })} />
+      </Field>
+      <Field label="Timeout (s) — 0 = no wait">
+        <input type="number" min="0" className={inputClass} value={block.timeout ?? 0} onChange={(e) => onChange({ timeout: Number(e.target.value) })} />
+      </Field>
+    </>
+  );
+}
+
+function WaitGoneProps({ block, onChange }: SubProps) {
+  return (
+    <>
+      <p className="text-xs text-gray-500 mb-2">Wait for an element to disappear from screen.</p>
+      <Field label="Text">
+        <input className={inputClass} placeholder="Loading..." value={block.text || ""} onChange={(e) => onChange({ text: e.target.value })} />
+      </Field>
+      <Field label="Resource ID (optional)">
+        <input className={inputClass} value={block.resource_id || ""} onChange={(e) => onChange({ resource_id: e.target.value })} />
+      </Field>
+      <Field label="Timeout (s)">
+        <input type="number" min="1" className={inputClass} value={block.timeout ?? 30} onChange={(e) => onChange({ timeout: Number(e.target.value) })} />
+      </Field>
+    </>
+  );
+}
+
+function ClearProps({ block, onChange }: SubProps) {
+  return (
+    <>
+      <p className="text-xs text-gray-500 mb-2">Clear a text field before typing new content.</p>
+      <Field label="Text">
+        <input className={inputClass} placeholder="Username" value={block.text || ""} onChange={(e) => onChange({ text: e.target.value })} />
+      </Field>
+      <Field label="Resource ID (optional)">
+        <input className={inputClass} value={block.resource_id || ""} onChange={(e) => onChange({ resource_id: e.target.value })} />
+      </Field>
+    </>
+  );
+}
+
+function RandomSleepProps({ block, onChange }: SubProps) {
+  return (
+    <>
+      <p className="text-xs text-gray-500 mb-2">Sleep for a random duration to simulate human-like timing.</p>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Min (s)">
+          <input type="number" step="0.1" min="0" className={inputClass} value={block.min ?? 1.0} onChange={(e) => onChange({ min: Number(e.target.value) })} />
+        </Field>
+        <Field label="Max (s)">
+          <input type="number" step="0.1" min="0" className={inputClass} value={block.max ?? 3.0} onChange={(e) => onChange({ max: Number(e.target.value) })} />
+        </Field>
+      </div>
     </>
   );
 }

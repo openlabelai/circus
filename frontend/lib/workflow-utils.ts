@@ -142,6 +142,22 @@ export function createEmptyBlock(actionType: ActionType): WorkflowBlock {
       block.actions = [];
       block.on_error = [];
       break;
+    case "assert":
+      block.condition = { type: "element_exists", text: "" };
+      block.message = "";
+      block.timeout = 0;
+      break;
+    case "wait_gone":
+      block.text = "";
+      block.timeout = 30;
+      break;
+    case "clear":
+      block.text = "";
+      break;
+    case "random_sleep":
+      block.min = 1.0;
+      block.max = 3.0;
+      break;
   }
 
   return block;
@@ -264,6 +280,14 @@ export function blockSummary(block: WorkflowBlock): string {
       return conditionSummary(block.condition);
     case "try":
       return "";
+    case "assert":
+      return block.message || conditionSummary(block.condition);
+    case "wait_gone":
+      return block.text ? `"${block.text}"` : block.resource_id || "";
+    case "clear":
+      return block.text ? `"${block.text}"` : block.resource_id || "";
+    case "random_sleep":
+      return `${block.min ?? 1}–${block.max ?? 3}s`;
     default:
       return "";
   }

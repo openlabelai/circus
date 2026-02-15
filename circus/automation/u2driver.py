@@ -74,6 +74,12 @@ class U2Driver(AutomationDriver):
             return el
         raise AutomationError(f"Element not found within {timeout}s: {selector}")
 
+    def clear_text(self, **selector: Any) -> None:
+        el = self.d(**selector)
+        if not el.wait(timeout=10):
+            raise AutomationError(f"Element not found for clear: {selector}")
+        el.clear_text()
+
     def element_exists(self, **selector: Any) -> bool:
         return self.d(**selector).exists
 

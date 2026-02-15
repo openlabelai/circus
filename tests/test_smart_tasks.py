@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -296,3 +296,149 @@ class TestExecuteActions:
     def test_empty_list(self, driver):
         result = execute_actions(driver, [], depth=0)
         assert result.success
+
+
+# --- assert action ---
+
+
+class TestAssertAction:
+    def test_assert_condition_true(self, driver):
+        driver.element_exists.return_value = True
+        action = {
+            "action": "assert",
+            "condition": {"element_exists": {"text": "Home"}},
+        }
+        result = execute_action(driver, action)
+        assert result.success
+
+    def test_assert_condition_false(self, driver):
+        driver.element_exists.return_value = False
+        action = {
+            "action": "assert",
+            "condition": {"element_exists": {"text": "Home"}},
+        }
+        result = execute_action(driver, action)
+        assert not result.success
+        assert "Assertion failed" in result.error
+
+    def test_assert_custom_message(self, driver):
+        driver.element_exists.return_value = False
+        action = {
+            "action": "assert",
+            "condition": {"element_exists": {"text": "Home"}},
+            "message": "Login failed — Home screen not found",
+        }
+        result = execute_action(driver, action)
+        assert not result.success
+        assert result.error == "Login failed — Home screen not found"
+
+    @patch("circus.automation.actions.time")
+    def test_assert_with_timeout_succeeds(self, mock_time, driver):
+        # Condition becomes true on 3rd check
+        driver.element_exists.side_effect = [False, False, True]
+        mock_time.time.side_effect = [0, 0.5, 1.0, 1.5]
+        mock_time.sleep = MagicMock()
+
+        action = {
+            "action": "assert",
+            "condition": {"element_exists": {"text": "Home"}},
+            "timeout": 10,
+        }
+        result = execute_action(driver, action)
+        assert result.success
+
+    @patch("circus.automation.actions.time")
+    def test_assert_with_timeout_fails(self, mock_time, driver):
+        driver.element_exists.return_value = False
+        # Simulate time passing beyond timeout
+        mock_time.time.side_effect = [0, 0.5, 1.0, 11.0]
+        mock_time.sleep = MagicMock()
+
+        action = {
+            "action": "assert",
+            "condition": {"element_exists": {"text": "Home"}},
+            "timeout": 10,
+            "message": "Timed out",
+        }
+        result = execute_action(driver, action)
+        assert not result.success
+        assert result.error == "Timed out"
+
+
+# --- wait_gone action ---
+
+
+class TestWaitGoneAction:
+    @patch("circus.automation.actions.time")
+    def test_wait_gone_element_disappears(self, mock_time, driver):
+        driver.element_exists.side_effect = [True, True, False]
+        mock_time.time.side_effect = [0, 0.5, 1.0, 1.5]
+        mock_time.sleep = MagicMock()
+
+        action = {
+            "action": "wait_gone",
+            "text": "Loading...",
+            "timeout": 30,
+        }
+        result = execute_action(driver, action)
+        assert result.success
+
+    @patch("circus.automation.actions.time")
+    def test_wait_gone_timeout(self, mock_time, driver):
+        driver.element_exists.return_value = True
+        mock_time.time.side_effect = [0, 0.5, 31.0]
+        mock_time.sleep = MagicMock()
+
+        action = {
+            "action": "wait_gone",
+            "text": "Loading...",
+            "timeout": 30,
+        }
+        result = execute_action(driver, action)
+        assert not result.success
+        assert "still present" in result.error
+
+
+# --- clear action ---
+
+
+class TestClearAction:
+    def test_clear_by_text(self, driver):
+        action = {"action": "clear", "text": "Username"}
+        result = execute_action(driver, action)
+        assert result.success
+        driver.clear_text.assert_called_once_with(text="Username")
+
+    def test_clear_by_resource_id(self, driver):
+        action = {"action": "clear", "resource_id": "com.app:id/input"}
+        result = execute_action(driver, action)
+        assert result.success
+        driver.clear_text.assert_called_once_with(resourceId="com.app:id/input")
+
+
+# --- random_sleep action ---
+
+
+class TestRandomSleepAction:
+    @patch("circus.automation.actions.time")
+    @patch("circus.automation.actions.random")
+    def test_random_sleep(self, mock_random, mock_time, driver):
+        mock_random.uniform.return_value = 1.5
+        mock_time.sleep = MagicMock()
+
+        action = {"action": "random_sleep", "min": 1.0, "max": 3.0}
+        result = execute_action(driver, action)
+        assert result.success
+        mock_random.uniform.assert_called_once_with(1.0, 3.0)
+        mock_time.sleep.assert_called_once_with(1.5)
+
+    @patch("circus.automation.actions.time")
+    @patch("circus.automation.actions.random")
+    def test_random_sleep_defaults(self, mock_random, mock_time, driver):
+        mock_random.uniform.return_value = 1.0
+        mock_time.sleep = MagicMock()
+
+        action = {"action": "random_sleep"}
+        result = execute_action(driver, action)
+        assert result.success
+        mock_random.uniform.assert_called_once_with(0.5, 2.0)

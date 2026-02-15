@@ -1,7 +1,8 @@
 export type ActionType =
   | "tap" | "long_press" | "swipe" | "type" | "press"
   | "wait" | "app_start" | "app_stop" | "screenshot" | "sleep"
-  | "if" | "repeat" | "while" | "try";
+  | "if" | "repeat" | "while" | "try"
+  | "assert" | "wait_gone" | "clear" | "random_sleep";
 
 export type ConditionType = "element_exists" | "element_not_exists" | "app_running";
 
@@ -47,6 +48,13 @@ export interface WorkflowBlock {
   actions?: WorkflowBlock[];
   max_iterations?: number;
   on_error?: WorkflowBlock[];
+
+  // Assert
+  message?: string;
+
+  // Random sleep
+  min?: number;
+  max?: number;
 }
 
 export interface TaskMetadata {
@@ -72,6 +80,7 @@ export const PALETTE_CATEGORIES: PaletteCategory[] = [
       { type: "long_press", label: "Long Press", icon: "👇" },
       { type: "swipe", label: "Swipe", icon: "👋" },
       { type: "type", label: "Type Text", icon: "⌨" },
+      { type: "clear", label: "Clear Field", icon: "✕" },
     ],
   },
   {
@@ -91,6 +100,7 @@ export const PALETTE_CATEGORIES: PaletteCategory[] = [
       { type: "repeat", label: "Repeat", icon: "↻" },
       { type: "while", label: "While", icon: "⟳" },
       { type: "try", label: "Try / Catch", icon: "⚡" },
+      { type: "assert", label: "Assert", icon: "✓" },
     ],
   },
   {
@@ -100,6 +110,8 @@ export const PALETTE_CATEGORIES: PaletteCategory[] = [
       { type: "wait", label: "Wait For", icon: "⏳" },
       { type: "sleep", label: "Sleep", icon: "💤" },
       { type: "screenshot", label: "Screenshot", icon: "📸" },
+      { type: "wait_gone", label: "Wait Gone", icon: "👻" },
+      { type: "random_sleep", label: "Random Sleep", icon: "🎲" },
     ],
   },
 ];
@@ -109,6 +121,7 @@ export const ACTION_COLORS: Record<ActionType, string> = {
   press: "green", app_start: "green", app_stop: "green",
   if: "purple", repeat: "purple", while: "purple", try: "purple",
   wait: "amber", sleep: "amber", screenshot: "amber",
+  assert: "purple", wait_gone: "amber", clear: "blue", random_sleep: "amber",
 };
 
 export const CONTROL_FLOW_ACTIONS: ActionType[] = ["if", "repeat", "while", "try"];

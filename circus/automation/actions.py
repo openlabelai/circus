@@ -1,4 +1,5 @@
 import logging
+import random
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -108,6 +109,14 @@ def execute_action(
             return _handle_while(driver, action, depth)
         elif action_type == "try":
             return _handle_try(driver, action, depth)
+        elif action_type == "assert":
+            return _handle_assert(driver, action)
+        elif action_type == "wait_gone":
+            _do_wait_gone(driver, action)
+        elif action_type == "clear":
+            _do_clear(driver, action)
+        elif action_type == "random_sleep":
+            time.sleep(random.uniform(action.get("min", 0.5), action.get("max", 2.0)))
         else:
             return ActionResult(success=False, error=f"Unknown action: {action_type}")
 
@@ -218,3 +227,48 @@ def _do_wait(driver: AutomationDriver, action: dict) -> None:
     if "resource_id" in action:
         selector["resourceId"] = action["resource_id"]
     driver.wait_element(timeout=timeout, **selector)
+
+
+def _handle_assert(driver: AutomationDriver, action: dict) -> ActionResult:
+    timeout = action.get("timeout", 0)
+    message = action.get("message", "Assertion failed")
+    condition = action["condition"]
+
+    if timeout > 0:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if evaluate_condition(driver, condition):
+                return ActionResult(success=True)
+            time.sleep(0.5)
+    else:
+        if evaluate_condition(driver, condition):
+            return ActionResult(success=True)
+
+    return ActionResult(success=False, error=message)
+
+
+def _do_wait_gone(driver: AutomationDriver, action: dict) -> None:
+    timeout = action.get("timeout", 30)
+    selector: dict[str, Any] = {}
+    if "text" in action:
+        selector["text"] = action["text"]
+    if "resource_id" in action:
+        selector["resourceId"] = action["resource_id"]
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not driver.element_exists(**selector):
+            return
+        time.sleep(0.5)
+    raise TimeoutError(
+        f"Element still present after {timeout}s: {selector}"
+    )
+
+
+def _do_clear(driver: AutomationDriver, action: dict) -> None:
+    selector: dict[str, Any] = {}
+    if "text" in action:
+        selector["text"] = action["text"]
+    if "resource_id" in action:
+        selector["resourceId"] = action["resource_id"]
+    driver.clear_text(**selector)
