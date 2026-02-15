@@ -94,6 +94,17 @@ def run_task(task_file: str, device: str | None) -> None:
                 f"  Completed {result.actions_completed}/{result.actions_total} actions"
             )
 
+        if result.screenshots:
+            config = Config()
+            os.makedirs(config.screenshot_dir, exist_ok=True)
+            for i, img in enumerate(result.screenshots):
+                path = os.path.join(
+                    config.screenshot_dir,
+                    f"{task.name}_{i}.png",
+                )
+                img.save(path)
+                console.print(f"  Screenshot saved: [cyan]{path}[/cyan]")
+
     asyncio.run(_run())
 
 
