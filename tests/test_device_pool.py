@@ -97,6 +97,34 @@ class TestDevicePool:
             assert dev is not None
             assert dev.status == DeviceStatus.OFFLINE
 
+    def test_atomic_acquire_marks_busy(self, pool):
+        """acquire() with task_id marks device busy under the lock."""
+        with (
+            patch("circus.device.pool.discover_devices", return_value=_mock_discover()),
+            patch("circus.device.pool.get_device_properties", side_effect=_mock_props),
+        ):
+            asyncio.run(pool.refresh())
+            dev = asyncio.run(pool.acquire("ABC123", task_id="task-99"))
+            assert dev.serial == "ABC123"
+            assert dev.status == DeviceStatus.BUSY
+            assert dev.current_task == "task-99"
+            # Second acquire of the same device should fail
+            with pytest.raises(DeviceBusyError):
+                asyncio.run(pool.acquire("ABC123"))
+
+    def test_atomic_acquire_any_marks_busy(self, pool):
+        """acquire() without serial but with task_id marks the device busy."""
+        with (
+            patch("circus.device.pool.discover_devices", return_value=["ONLY1"]),
+            patch("circus.device.pool.get_device_properties", side_effect=_mock_props),
+        ):
+            asyncio.run(pool.refresh())
+            dev = asyncio.run(pool.acquire(task_id="task-42"))
+            assert dev.status == DeviceStatus.BUSY
+            assert dev.current_task == "task-42"
+            with pytest.raises(DeviceNotFoundError, match="No available"):
+                asyncio.run(pool.acquire())
+
     def test_no_available_devices_raises(self, pool):
         with pytest.raises(DeviceNotFoundError, match="No available"):
             asyncio.run(pool.acquire())

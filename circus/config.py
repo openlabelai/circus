@@ -16,5 +16,8 @@ class Config:
     persona_dir: str = field(
         default_factory=lambda: os.getenv("CIRCUS_PERSONA_DIR", "./personas")
     )
+    results_dir: str = field(
+        default_factory=lambda: os.getenv("CIRCUS_RESULTS_DIR", "./results")
+    )
     default_timeout: float = 30.0
     action_delay: float = 0.5

@@ -9,7 +9,9 @@ from circus.config import Config
 from circus.device.pool import DevicePool
 from circus.persona.generator import generate_personas
 from circus.persona.storage import PersonaStore
+from circus.tasks.executor import ParallelExecutor
 from circus.tasks.models import Task
+from circus.tasks.results import ResultStore
 from circus.tasks.runner import TaskRunner
 
 console = Console()
@@ -70,15 +72,17 @@ def devices() -> None:
 @cli.command(name="run")
 @click.argument("task_file")
 @click.option("--device", "-d", default=None, help="Device serial (default: any available)")
-def run_task(task_file: str, device: str | None) -> None:
+@click.option("--no-save", is_flag=True, default=False, help="Skip saving result to disk")
+def run_task(task_file: str, device: str | None, no_save: bool) -> None:
     """Run a task from a YAML file on a device."""
 
     async def _run() -> None:
+        config = Config()
         pool = _get_pool()
         await pool.refresh()
 
         task = Task.from_yaml(task_file)
-        runner = TaskRunner(pool)
+        runner = TaskRunner(pool, config)
 
         console.print(f"Running task [bold]{task.name}[/bold]...")
         result = await runner.run(task, serial=device)
@@ -94,8 +98,12 @@ def run_task(task_file: str, device: str | None) -> None:
                 f"  Completed {result.actions_completed}/{result.actions_total} actions"
             )
 
+        if not no_save:
+            store = ResultStore(config.results_dir)
+            path = store.save(result)
+            console.print(f"  Result saved: [cyan]{path}[/cyan]")
+
         if result.screenshots:
-            config = Config()
             os.makedirs(config.screenshot_dir, exist_ok=True)
             for i, img in enumerate(result.screenshots):
                 path = os.path.join(
@@ -106,6 +114,97 @@ def run_task(task_file: str, device: str | None) -> None:
                 console.print(f"  Screenshot saved: [cyan]{path}[/cyan]")
 
     asyncio.run(_run())
+
+
+@cli.command(name="run-all")
+@click.argument("task_file")
+@click.option("--devices", "-d", default=None, help="Comma-separated device serials to target")
+@click.option("--no-save", is_flag=True, default=False, help="Skip saving results to disk")
+def run_all(task_file: str, devices: str | None, no_save: bool) -> None:
+    """Run a task on all available devices in parallel."""
+
+    async def _run() -> None:
+        config = Config()
+        pool = _get_pool()
+        device_filter = devices.split(",") if devices else None
+
+        executor = ParallelExecutor(pool, config, store_results=not no_save)
+        task = Task.from_yaml(task_file)
+
+        console.print(f"Running task [bold]{task.name}[/bold] on all devices...")
+        summary = await executor.run_on_all(task, device_filter=device_filter)
+
+        if not summary.results:
+            console.print("[yellow]No available devices found.[/yellow]")
+            return
+
+        table = Table(title="Results")
+        table.add_column("Device", style="cyan")
+        table.add_column("Status")
+        table.add_column("Actions")
+        table.add_column("Duration")
+        table.add_column("Error")
+
+        for r in summary.results:
+            status_str = "[green]OK[/green]" if r.success else "[red]FAIL[/red]"
+            table.add_row(
+                r.device_serial,
+                status_str,
+                f"{r.actions_completed}/{r.actions_total}",
+                f"{r.duration:.1f}s",
+                r.error or "",
+            )
+
+        console.print(table)
+        console.print(
+            f"[bold]{summary.successful}/{summary.total_devices} succeeded[/bold] "
+            f"in {summary.duration:.1f}s"
+        )
+
+    asyncio.run(_run())
+
+
+@cli.command()
+@click.option("--date", "date_str", default=None, help="Date in YYYY-MM-DD format (default: today)")
+def results(date_str: str | None) -> None:
+    """Show stored task results."""
+    from datetime import date
+
+    config = Config()
+    store = ResultStore(config.results_dir)
+    target_date = date_str or date.today().isoformat()
+    records = store.load_date(target_date)
+
+    if not records:
+        console.print(f"[dim]No results found for {target_date}[/dim]")
+        return
+
+    table = Table(title=f"Results — {target_date}")
+    table.add_column("Time", style="dim")
+    table.add_column("Task ID", style="cyan")
+    table.add_column("Device", style="cyan")
+    table.add_column("Status")
+    table.add_column("Actions")
+    table.add_column("Duration")
+    table.add_column("Error")
+
+    for rec in records:
+        ts = rec["timestamp"]
+        # Show just the time portion
+        time_str = ts.split("T")[1][:8] if "T" in ts else ts
+        status_str = "[green]OK[/green]" if rec["success"] else "[red]FAIL[/red]"
+        table.add_row(
+            time_str,
+            rec["task_id"],
+            rec["device_serial"],
+            status_str,
+            f"{rec['actions_completed']}/{rec['actions_total']}",
+            f"{rec['duration']}s",
+            rec.get("error") or "",
+        )
+
+    console.print(table)
+    console.print(f"[bold]{len(records)} result(s)[/bold]")
 
 
 @cli.command()

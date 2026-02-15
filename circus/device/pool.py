@@ -39,11 +39,12 @@ class DevicePool:
 
         return list(self._devices.values())
 
-    async def acquire(self, serial: str | None = None) -> Device:
+    async def acquire(self, serial: str | None = None, task_id: str | None = None) -> Device:
         """Acquire a device for task execution.
 
         If serial is given, acquire that specific device.
         Otherwise, pick any available device.
+        If task_id is provided, atomically mark the device busy under the lock.
         """
         async with self._lock:
             if serial:
@@ -52,10 +53,14 @@ class DevicePool:
                     raise DeviceNotFoundError(f"Device not found: {serial}")
                 if dev.status != DeviceStatus.AVAILABLE:
                     raise DeviceBusyError(f"Device {serial} is {dev.status.value}")
+                if task_id:
+                    dev.mark_busy(task_id)
                 return dev
 
             for dev in self._devices.values():
                 if dev.status == DeviceStatus.AVAILABLE:
+                    if task_id:
+                        dev.mark_busy(task_id)
                     return dev
 
             raise DeviceNotFoundError("No available devices")

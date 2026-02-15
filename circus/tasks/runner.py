@@ -38,8 +38,7 @@ class TaskRunner:
 
     async def run(self, task: Task, serial: str | None = None) -> TaskResult:
         """Run a task on a device. Acquires from pool, executes, releases."""
-        device = await self.pool.acquire(serial)
-        device.mark_busy(task.id)
+        device = await self.pool.acquire(serial, task_id=task.id)
 
         driver = U2Driver()
         start = time.time()
