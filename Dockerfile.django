@@ -1,0 +1,18 @@
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    android-tools-adb usbutils git && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY pyproject.toml .
+RUN pip install --no-cache-dir hatchling && \
+    pip install --no-cache-dir uiautomator2 adbutils pyyaml click rich pillow faker \
+    django>=4.2 djangorestframework>=3.15 django-cors-headers>=4.0
+
+COPY . .
+RUN pip install --no-cache-dir -e .
+
+WORKDIR /app/web
+
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

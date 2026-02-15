@@ -12,3 +12,36 @@ services:
     stdin_open: true
     tty: true
     working_dir: /app
+
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile.django
+    container_name: circus-django
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - ANDROID_ADB_SERVER_HOST=host.docker.internal
+      - ANDROID_ADB_SERVER_PORT=5037
+      - DJANGO_SETTINGS_MODULE=circus_web.settings
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    working_dir: /app/web
+    command: >
+      sh -c "python manage.py migrate --run-syncdb && python manage.py runserver 0.0.0.0:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: circus-frontend
+    ports:
+      - "3001:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev
