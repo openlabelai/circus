@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from api.models import Persona, ServiceCredential, Task, TaskResult
+from api.models import Persona, QueuedRun, ScheduledTask, ServiceCredential, Task, TaskResult
 
 
 class ServiceCredentialSerializer(serializers.ModelSerializer):
@@ -64,3 +64,56 @@ class TaskResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaskResult
         fields = "__all__"
+
+
+class ScheduledTaskSerializer(serializers.ModelSerializer):
+    task_name = serializers.CharField(source="task.name", read_only=True)
+    persona_name = serializers.CharField(source="persona.name", read_only=True, default="")
+
+    class Meta:
+        model = ScheduledTask
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "last_run_at", "next_run_at"]
+
+    def validate(self, data):
+        trigger = data.get("trigger_type", getattr(self.instance, "trigger_type", None))
+        if trigger == "cron" and not data.get(
+            "cron_expression", getattr(self.instance, "cron_expression", "")
+        ):
+            raise serializers.ValidationError(
+                {"cron_expression": "Required for cron trigger type."}
+            )
+        if trigger == "interval" and not data.get(
+            "interval_seconds", getattr(self.instance, "interval_seconds", 0)
+        ):
+            raise serializers.ValidationError(
+                {"interval_seconds": "Required for interval trigger type."}
+            )
+        if trigger == "once" and not data.get(
+            "run_at", getattr(self.instance, "run_at", None)
+        ):
+            raise serializers.ValidationError(
+                {"run_at": "Required for one-time trigger type."}
+            )
+        return data
+
+
+class QueuedRunSerializer(serializers.ModelSerializer):
+    task_name = serializers.CharField(source="task.name", read_only=True)
+    persona_name = serializers.CharField(source="persona.name", read_only=True, default="")
+    schedule_id = serializers.CharField(source="schedule.id", read_only=True, default="")
+
+    class Meta:
+        model = QueuedRun
+        fields = "__all__"
+        read_only_fields = [
+            "id", "status", "attempt", "queued_at", "started_at",
+            "completed_at", "error", "result",
+        ]
+
+
+class QueuedRunCreateSerializer(serializers.Serializer):
+    task_id = serializers.CharField()
+    device_serial = serializers.CharField(required=False, default="")
+    persona_id = serializers.CharField(required=False, default="")
+    priority = serializers.IntegerField(required=False, default=0)

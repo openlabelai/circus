@@ -7,6 +7,8 @@ router = DefaultRouter()
 router.register(r'personas', views.PersonaViewSet)
 router.register(r'tasks', views.TaskViewSet)
 router.register(r'results', views.TaskResultViewSet, basename='taskresult')
+router.register(r'schedules', views.ScheduledTaskViewSet)
+router.register(r'queue', views.QueuedRunViewSet, basename='queuedrun')
 
 urlpatterns = [
     path('', include(router.urls)),

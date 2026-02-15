@@ -1,14 +1,18 @@
 from datetime import date
 
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
-from api.models import Persona, ServiceCredential, Task, TaskResult
+from api.models import Persona, QueuedRun, ScheduledTask, ServiceCredential, Task, TaskResult
 from api.serializers import (
     PersonaListSerializer,
     PersonaSerializer,
+    QueuedRunCreateSerializer,
+    QueuedRunSerializer,
+    ScheduledTaskSerializer,
     TaskResultSerializer,
     TaskSerializer,
 )
@@ -132,6 +136,19 @@ class TaskViewSet(viewsets.ModelViewSet):
     def run(self, request, pk=None):
         task = self.get_object()
         device_serial = request.data.get("device_serial", None)
+        background = request.data.get("background", False)
+
+        if background:
+            run = QueuedRun.objects.create(
+                task=task,
+                device_serial=device_serial or "",
+                max_retries=task.retry_count,
+            )
+            return Response(
+                {"queued_run_id": run.id, "status": "queued"},
+                status=status.HTTP_202_ACCEPTED,
+            )
+
         from api.services import run_task_on_device
         try:
             result_data = run_task_on_device(task, device_serial)
@@ -245,4 +262,123 @@ def status_overview(request):
             "successful": today_success,
             "failed": today_total - today_success,
         },
+        "schedules": ScheduledTask.objects.filter(status="active").count(),
+        "queue": {
+            "queued": QueuedRun.objects.filter(status="queued").count(),
+            "running": QueuedRun.objects.filter(status="running").count(),
+        },
     })
+
+
+# -- Schedule and Queue viewsets --
+
+
+class ScheduledTaskViewSet(viewsets.ModelViewSet):
+    queryset = ScheduledTask.objects.select_related("task", "persona").all()
+    serializer_class = ScheduledTaskSerializer
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        from api.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        if scheduler._started:
+            scheduler.sync_schedule(instance)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        from api.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        if scheduler._started:
+            scheduler.sync_schedule(instance)
+
+    def perform_destroy(self, instance):
+        from api.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        if scheduler._started:
+            scheduler.remove_schedule(instance.id)
+        instance.delete()
+
+    @action(detail=True, methods=["post"])
+    def pause(self, request, pk=None):
+        schedule = self.get_object()
+        schedule.status = "paused"
+        schedule.save(update_fields=["status"])
+        from api.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        if scheduler._started:
+            scheduler.remove_schedule(schedule.id)
+        return Response({"status": "paused"})
+
+    @action(detail=True, methods=["post"])
+    def resume(self, request, pk=None):
+        schedule = self.get_object()
+        schedule.status = "active"
+        schedule.save(update_fields=["status"])
+        from api.scheduler import get_scheduler
+        scheduler = get_scheduler()
+        if scheduler._started:
+            scheduler.sync_schedule(schedule)
+        return Response({"status": "active"})
+
+
+class QueuedRunViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = QueuedRunSerializer
+
+    def get_queryset(self):
+        qs = QueuedRun.objects.select_related("task", "persona", "schedule").all()
+        run_status = self.request.query_params.get("status")
+        task_id = self.request.query_params.get("task_id")
+        schedule_id = self.request.query_params.get("schedule")
+        if run_status:
+            qs = qs.filter(status=run_status)
+        if task_id:
+            qs = qs.filter(task_id=task_id)
+        if schedule_id:
+            qs = qs.filter(schedule_id=schedule_id)
+        return qs
+
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        run = self.get_object()
+        if run.status != "queued":
+            return Response(
+                {"error": "Can only cancel queued runs"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        run.status = "cancelled"
+        run.completed_at = timezone.now()
+        run.save(update_fields=["status", "completed_at"])
+        return Response({"status": "cancelled"})
+
+    @action(detail=False, methods=["post"])
+    def enqueue(self, request):
+        serializer = QueuedRunCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            task = Task.objects.get(id=data["task_id"])
+        except Task.DoesNotExist:
+            return Response(
+                {"error": "Task not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        persona = None
+        if data.get("persona_id"):
+            try:
+                persona = Persona.objects.get(id=data["persona_id"])
+            except Persona.DoesNotExist:
+                return Response(
+                    {"error": "Persona not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+
+        run = QueuedRun.objects.create(
+            task=task,
+            persona=persona,
+            device_serial=data.get("device_serial", ""),
+            priority=data.get("priority", 0),
+            max_retries=task.retry_count,
+        )
+        return Response(
+            QueuedRunSerializer(run).data, status=status.HTTP_201_CREATED
+        )

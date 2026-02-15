@@ -1,29 +1,36 @@
-"""Bridge between Django views and existing circus async business logic."""
+"""Bridge between Django views and existing circus async business logic.
+
+Uses the shared CircusScheduler executor loop instead of asyncio.run()
+per request, fixing event loop fragility and sharing the DevicePool.
+"""
 import asyncio
 
-from circus.config import Config
-from circus.device.pool import DevicePool
 from circus.persona.generator import generate_personas as _gen_personas
 from circus.tasks.executor import ParallelExecutor
 from circus.tasks.models import Task as CircusTask
 from circus.tasks.runner import TaskRunner
 
-_pool: DevicePool | None = None
-_config: Config | None = None
+
+def _get_scheduler():
+    from api.scheduler import get_scheduler
+    return get_scheduler()
 
 
-def get_config() -> Config:
-    global _config
-    if _config is None:
-        _config = Config()
-    return _config
+def get_config():
+    return _get_scheduler().config
 
 
-def get_pool() -> DevicePool:
-    global _pool
-    if _pool is None:
-        _pool = DevicePool()
-    return _pool
+def get_pool():
+    return _get_scheduler().pool
+
+
+def _run_async(coro, timeout=None):
+    """Submit a coroutine to the shared executor loop and wait for result."""
+    scheduler = _get_scheduler()
+    if not scheduler._started:
+        scheduler.start()
+    future = asyncio.run_coroutine_threadsafe(coro, scheduler.loop)
+    return future.result(timeout=timeout)
 
 
 def _serialize_device(dev) -> dict:
@@ -42,7 +49,7 @@ def _serialize_device(dev) -> dict:
 
 def refresh_devices() -> list[dict]:
     pool = get_pool()
-    devices = asyncio.run(pool.refresh())
+    devices = _run_async(pool.refresh())
     return [_serialize_device(d) for d in devices]
 
 
@@ -74,7 +81,7 @@ def _ensure_devices():
     """Auto-refresh device pool if empty."""
     pool = get_pool()
     if not pool.list_all():
-        asyncio.run(pool.refresh())
+        _run_async(pool.refresh())
 
 
 def run_task_on_device(task, serial: str | None = None) -> dict:
@@ -83,7 +90,7 @@ def run_task_on_device(task, serial: str | None = None) -> dict:
     _ensure_devices()
     circus_task = _db_task_to_circus(task)
     runner = TaskRunner(pool, config)
-    result = asyncio.run(runner.run(circus_task, serial=serial))
+    result = _run_async(runner.run(circus_task, serial=serial), timeout=task.timeout + 30)
     return {
         "task_id": result.task_id,
         "device_serial": result.device_serial,
@@ -102,7 +109,7 @@ def run_task_on_all(task, device_filter: list[str] | None = None) -> dict:
     _ensure_devices()
     circus_task = _db_task_to_circus(task)
     executor = ParallelExecutor(pool, config, store_results=False)
-    summary = asyncio.run(executor.run_on_all(circus_task, device_filter=device_filter))
+    summary = _run_async(executor.run_on_all(circus_task, device_filter=device_filter))
     return {
         "total_devices": summary.total_devices,
         "successful": summary.successful,

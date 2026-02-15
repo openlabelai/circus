@@ -94,3 +94,97 @@ class TaskResult(models.Model):
     def __str__(self):
         status = "OK" if self.success else "FAIL"
         return f"{self.task_id}@{self.device_serial} [{status}]"
+
+
+class ScheduledTask(models.Model):
+    """A schedule that triggers task runs (cron, interval, or one-shot)."""
+
+    TRIGGER_CHOICES = [
+        ("cron", "Cron"),
+        ("interval", "Interval"),
+        ("once", "One-time"),
+    ]
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("paused", "Paused"),
+        ("expired", "Expired"),
+    ]
+
+    id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="schedules")
+    persona = models.ForeignKey(
+        Persona,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="schedules",
+    )
+    device_serial = models.CharField(max_length=200, blank=True, default="")
+
+    trigger_type = models.CharField(max_length=10, choices=TRIGGER_CHOICES)
+    cron_expression = models.CharField(max_length=200, blank=True, default="")
+    interval_seconds = models.IntegerField(default=0)
+    run_at = models.DateTimeField(null=True, blank=True)
+
+    respect_active_hours = models.BooleanField(default=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    next_run_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.task.name} ({self.trigger_type})"
+
+
+class QueuedRun(models.Model):
+    """An individual task run instance with lifecycle tracking."""
+
+    STATUS_CHOICES = [
+        ("queued", "Queued"),
+        ("running", "Running"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+        ("skipped", "Skipped"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="queued_runs")
+    schedule = models.ForeignKey(
+        ScheduledTask,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="runs",
+    )
+    persona = models.ForeignKey(
+        Persona,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    device_serial = models.CharField(max_length=200, blank=True, default="")
+
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="queued")
+    priority = models.IntegerField(default=0)
+    attempt = models.IntegerField(default=0)
+    max_retries = models.IntegerField(default=0)
+
+    queued_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    error = models.TextField(blank=True, default="")
+
+    result = models.ForeignKey(
+        TaskResult, on_delete=models.SET_NULL, null=True, blank=True
+    )
+
+    class Meta:
+        ordering = ["-priority", "queued_at"]
+
+    def __str__(self):
+        return f"{self.task.name} [{self.status}]"

@@ -1,0 +1,8 @@
+name: Open Instagram
+description: Opens Instagram
+target_package: ''
+timeout: 300.0
+retry_count: 0
+actions:
+- action: app_start
+  package: com.instagram.android
