@@ -79,3 +79,7 @@ class U2Driver(AutomationDriver):
 
     def get_screen_size(self) -> tuple[int, int]:
         return self.d.window_size()
+
+    def get_current_package(self) -> str | None:
+        info = self.d.app_current()
+        return info.get("package") if info else None

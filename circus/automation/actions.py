@@ -1,8 +1,13 @@
+import logging
 import time
 from dataclasses import dataclass, field
 from typing import Any
 
 from circus.automation.base import AutomationDriver
+
+logger = logging.getLogger(__name__)
+
+MAX_NESTING_DEPTH = 20
 
 
 @dataclass
@@ -21,7 +26,32 @@ _SWIPE_DIRECTIONS: dict[str, tuple[float, float, float, float]] = {
 }
 
 
-def execute_action(driver: AutomationDriver, action: dict) -> ActionResult:
+def evaluate_condition(driver: AutomationDriver, condition: dict) -> bool:
+    """Evaluate a condition dict against the driver."""
+    if "element_exists" in condition:
+        return driver.element_exists(**condition["element_exists"])
+    if "element_not_exists" in condition:
+        return not driver.element_exists(**condition["element_not_exists"])
+    if "app_running" in condition:
+        current = driver.get_current_package()
+        return current == condition["app_running"].get("package")
+    return False
+
+
+def execute_actions(
+    driver: AutomationDriver, actions: list[dict], depth: int
+) -> ActionResult:
+    """Execute a list of actions sequentially, used by control flow handlers."""
+    for action in actions:
+        result = execute_action(driver, action, depth=depth + 1)
+        if not result.success:
+            return result
+    return ActionResult(success=True)
+
+
+def execute_action(
+    driver: AutomationDriver, action: dict, depth: int = 0
+) -> ActionResult:
     """Execute a single action dict against a driver.
 
     Action format examples:
@@ -34,7 +64,18 @@ def execute_action(driver: AutomationDriver, action: dict) -> ActionResult:
         {"action": "press", "key": "back"}
         {"action": "screenshot"}
         {"action": "sleep", "duration": 2.0}
+
+    Control flow actions:
+        {"action": "if", "condition": {...}, "then": [...], "else": [...]}
+        {"action": "repeat", "count": N, "actions": [...]}
+        {"action": "while", "condition": {...}, "actions": [...], "max_iterations": N}
+        {"action": "try", "actions": [...], "on_error": [...]}
     """
+    if depth > MAX_NESTING_DEPTH:
+        return ActionResult(
+            success=False, error=f"Max nesting depth ({MAX_NESTING_DEPTH}) exceeded"
+        )
+
     try:
         action_type = action["action"]
 
@@ -59,6 +100,14 @@ def execute_action(driver: AutomationDriver, action: dict) -> ActionResult:
             return ActionResult(success=True, data=img)
         elif action_type == "sleep":
             time.sleep(action.get("duration", 1.0))
+        elif action_type == "if":
+            return _handle_if(driver, action, depth)
+        elif action_type == "repeat":
+            return _handle_repeat(driver, action, depth)
+        elif action_type == "while":
+            return _handle_while(driver, action, depth)
+        elif action_type == "try":
+            return _handle_try(driver, action, depth)
         else:
             return ActionResult(success=False, error=f"Unknown action: {action_type}")
 
@@ -66,6 +115,53 @@ def execute_action(driver: AutomationDriver, action: dict) -> ActionResult:
 
     except Exception as e:
         return ActionResult(success=False, error=str(e))
+
+
+# --- Control flow handlers ---
+
+
+def _handle_if(
+    driver: AutomationDriver, action: dict, depth: int
+) -> ActionResult:
+    if evaluate_condition(driver, action["condition"]):
+        return execute_actions(driver, action.get("then", []), depth)
+    else:
+        return execute_actions(driver, action.get("else", []), depth)
+
+
+def _handle_repeat(
+    driver: AutomationDriver, action: dict, depth: int
+) -> ActionResult:
+    for _ in range(action["count"]):
+        result = execute_actions(driver, action["actions"], depth)
+        if not result.success:
+            return result
+    return ActionResult(success=True)
+
+
+def _handle_while(
+    driver: AutomationDriver, action: dict, depth: int
+) -> ActionResult:
+    max_iter = action.get("max_iterations", 100)
+    for _ in range(max_iter):
+        if not evaluate_condition(driver, action["condition"]):
+            break
+        result = execute_actions(driver, action["actions"], depth)
+        if not result.success:
+            return result
+    return ActionResult(success=True)
+
+
+def _handle_try(
+    driver: AutomationDriver, action: dict, depth: int
+) -> ActionResult:
+    result = execute_actions(driver, action["actions"], depth)
+    if not result.success and "on_error" in action:
+        return execute_actions(driver, action["on_error"], depth)
+    return result
+
+
+# --- Primitive action handlers ---
 
 
 def _do_tap(driver: AutomationDriver, action: dict) -> None:

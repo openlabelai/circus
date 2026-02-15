@@ -60,3 +60,6 @@ class AutomationDriver(ABC):
 
     @abstractmethod
     def get_screen_size(self) -> tuple[int, int]: ...
+
+    @abstractmethod
+    def get_current_package(self) -> str | None: ...

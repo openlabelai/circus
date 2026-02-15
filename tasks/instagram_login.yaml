@@ -1,0 +1,56 @@
+name: instagram_login
+description: Log into Instagram with persona credentials, handle popups, scroll feed
+target_package: com.instagram.android
+timeout: 120
+actions:
+  - action: app_start
+    package: com.instagram.android
+  - action: sleep
+    duration: 3.0
+
+  # Dismiss "Allow notifications" popup if it appears
+  - action: if
+    condition:
+      element_exists: {text: "Allow"}
+    then:
+      - action: tap
+        text: "Not Now"
+
+  # Type credentials (using persona template vars)
+  - action: try
+    actions:
+      - action: type
+        text: "{persona.credentials.instagram.username}"
+        into: "Username"
+        into_by: "text"
+      - action: type
+        text: "{persona.credentials.instagram.password}"
+        into: "Password"
+        into_by: "text"
+      - action: tap
+        text: "Log in"
+    on_error:
+      - action: screenshot
+      - action: press
+        key: back
+
+  # Wait for feed to load, dismiss popups
+  - action: sleep
+    duration: 5.0
+  - action: if
+    condition:
+      element_exists: {text: "Save Your Login Info?"}
+    then:
+      - action: tap
+        text: "Not now"
+
+  # Scroll feed
+  - action: repeat
+    count: 5
+    actions:
+      - action: swipe
+        direction: up
+      - action: sleep
+        duration: 2.0
+
+  - action: screenshot
