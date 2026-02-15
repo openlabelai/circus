@@ -12,7 +12,7 @@ WORKDIR /app
 # Install Python deps first for caching
 COPY pyproject.toml .
 RUN pip install --no-cache-dir hatchling && \
-    pip install --no-cache-dir uiautomator2 adbutils pyyaml click rich pillow pytest
+    pip install --no-cache-dir uiautomator2 adbutils pyyaml click rich pillow pytest faker
 
 # Copy source
 COPY . .

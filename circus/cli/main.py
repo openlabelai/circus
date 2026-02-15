@@ -7,6 +7,8 @@ from rich.table import Table
 
 from circus.config import Config
 from circus.device.pool import DevicePool
+from circus.persona.generator import generate_personas
+from circus.persona.storage import PersonaStore
 from circus.tasks.models import Task
 from circus.tasks.runner import TaskRunner
 
@@ -137,3 +139,106 @@ def tasks(directory: str) -> None:
                 table.add_row(f, "[red]ERROR[/red]", str(e))
 
     console.print(table)
+
+
+# -- Persona commands --
+
+
+@cli.group()
+def persona() -> None:
+    """Manage synthetic personas."""
+
+
+@persona.command(name="generate")
+@click.option("-n", "--count", default=1, help="Number of personas to generate")
+@click.option(
+    "--services", default=None, help="Comma-separated services (e.g. instagram,tiktok)"
+)
+def persona_generate(count: int, services: str | None) -> None:
+    """Generate synthetic personas."""
+    svc_list = services.split(",") if services else None
+    config = Config()
+    store = PersonaStore(config.persona_dir)
+    personas = generate_personas(count, services=svc_list)
+    for p in personas:
+        path = store.save(p)
+        console.print(f"  [green]+[/green] {p.id} — {p.name} -> {path}")
+    console.print(f"[bold]Generated {count} persona(s)[/bold]")
+
+
+@persona.command(name="list")
+def persona_list() -> None:
+    """List all personas and their device assignments."""
+    config = Config()
+    store = PersonaStore(config.persona_dir)
+    personas = store.list_all()
+    assignments = store.get_assignments()
+
+    table = Table(title="Personas")
+    table.add_column("ID", style="cyan")
+    table.add_column("Name")
+    table.add_column("Age")
+    table.add_column("Username")
+    table.add_column("Services")
+    table.add_column("Device", style="yellow")
+
+    for p in personas:
+        device = assignments.get(p.id, "-")
+        svcs = ", ".join(p.credentials.keys()) if p.credentials else "-"
+        table.add_row(p.id, p.name, str(p.age), p.username, svcs, device)
+
+    console.print(table)
+    if not personas:
+        console.print(
+            "[dim]No personas found. Run 'circus persona generate' first.[/dim]"
+        )
+
+
+@persona.command(name="show")
+@click.argument("persona_id")
+def persona_show(persona_id: str) -> None:
+    """Show full details for a persona."""
+    import yaml
+
+    config = Config()
+    store = PersonaStore(config.persona_dir)
+    try:
+        p = store.load(persona_id)
+    except FileNotFoundError:
+        console.print(f"[red]Persona not found: {persona_id}[/red]")
+        return
+
+    device = store.get_device_for_persona(persona_id)
+    console.print(f"[bold]Persona: {p.id}[/bold]")
+    if device:
+        console.print(f"[yellow]Assigned to device: {device}[/yellow]")
+    else:
+        console.print("[dim]Not assigned to any device[/dim]")
+    console.print(yaml.dump(p.to_dict(), default_flow_style=False, sort_keys=False))
+
+
+@persona.command(name="assign")
+@click.argument("persona_id")
+@click.argument("device_serial")
+def persona_assign(persona_id: str, device_serial: str) -> None:
+    """Assign a persona to a device."""
+    config = Config()
+    store = PersonaStore(config.persona_dir)
+    try:
+        store.assign(persona_id, device_serial)
+        console.print(f"[green]Assigned {persona_id} -> {device_serial}[/green]")
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"[red]{e}[/red]")
+
+
+@persona.command(name="unassign")
+@click.argument("persona_id")
+def persona_unassign(persona_id: str) -> None:
+    """Remove persona-device assignment."""
+    config = Config()
+    store = PersonaStore(config.persona_dir)
+    try:
+        store.unassign(persona_id)
+        console.print(f"[green]Unassigned {persona_id}[/green]")
+    except KeyError as e:
+        console.print(f"[red]{e}[/red]")

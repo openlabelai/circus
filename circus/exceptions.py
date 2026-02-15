@@ -24,3 +24,11 @@ class TaskError(CircusError):
 
 class TaskTimeoutError(TaskError):
     """Task exceeded its timeout."""
+
+
+class PersonaError(CircusError):
+    """Persona operation failed."""
+
+
+class PersonaNotFoundError(PersonaError):
+    """Persona not found."""

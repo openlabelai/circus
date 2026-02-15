@@ -11,6 +11,8 @@ from circus.config import Config
 from circus.device.models import Device
 from circus.device.pool import DevicePool
 from circus.exceptions import TaskError, TaskTimeoutError
+from circus.persona.storage import PersonaStore
+from circus.persona.templates import substitute_persona_vars
 from circus.tasks.models import Task
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,7 @@ class TaskRunner:
     def __init__(self, pool: DevicePool, config: Config | None = None) -> None:
         self.pool = pool
         self.config = config or Config()
+        self.persona_store = PersonaStore(self.config.persona_dir)
 
     async def run(self, task: Task, serial: str | None = None) -> TaskResult:
         """Run a task on a device. Acquires from pool, executes, releases."""
@@ -47,6 +50,11 @@ class TaskRunner:
             await asyncio.to_thread(driver.connect, device.serial)
             logger.info("Running task '%s' on %s", task.name, device.serial)
 
+            # Resolve persona for this device (if assigned)
+            persona = self.persona_store.get_persona_for_device(device.serial)
+            if persona:
+                logger.info("Using persona '%s' (%s)", persona.name, persona.id)
+
             for i, action_def in enumerate(task.actions):
                 elapsed = time.time() - start
                 if elapsed > task.timeout:
@@ -54,13 +62,20 @@ class TaskRunner:
                         f"Task timed out after {elapsed:.1f}s"
                     )
 
+                # Substitute persona template variables
+                resolved_action = action_def
+                if persona is not None:
+                    resolved_action = substitute_persona_vars(action_def, persona)
+
                 logger.debug(
                     "  Action %d/%d: %s",
                     i + 1,
                     len(task.actions),
-                    action_def.get("action"),
+                    resolved_action.get("action"),
                 )
-                result = await asyncio.to_thread(execute_action, driver, action_def)
+                result = await asyncio.to_thread(
+                    execute_action, driver, resolved_action
+                )
 
                 if not result.success:
                     raise TaskError(f"Action {i + 1} failed: {result.error}")
