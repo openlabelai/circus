@@ -1,0 +1,11 @@
+services:
+  circus:
+    build: .
+    container_name: circus-dev
+    volumes:
+      - .:/app
+      - /dev/bus/usb:/dev/bus/usb
+    privileged: true
+    stdin_open: true
+    tty: true
+    working_dir: /app

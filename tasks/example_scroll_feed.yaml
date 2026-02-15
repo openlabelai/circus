@@ -1,0 +1,20 @@
+name: scroll_instagram_feed
+description: Open Instagram and scroll the feed
+target_package: com.instagram.android
+timeout: 60
+actions:
+  - action: app_start
+    package: com.instagram.android
+  - action: sleep
+    duration: 3.0
+  - action: swipe
+    direction: up
+  - action: sleep
+    duration: 2.0
+  - action: swipe
+    direction: up
+  - action: sleep
+    duration: 2.0
+  - action: swipe
+    direction: up
+  - action: screenshot
