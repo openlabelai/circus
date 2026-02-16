@@ -65,7 +65,8 @@ function formatDuration(started: string | null, completed: string | null): strin
 export default function HarvestPage() {
   // -- Form state --
   const [platform, setPlatform] = useState("instagram");
-  const [artistHandle, setArtistHandle] = useState("");
+  const [igHandle, setIgHandle] = useState("");
+  const [tiktokHandle, setTiktokHandle] = useState("");
   const [harvestType, setHarvestType] = useState("follower");
   const [targetCount, setTargetCount] = useState(50);
   const [deviceSerial, setDeviceSerial] = useState("");
@@ -117,10 +118,15 @@ export default function HarvestPage() {
 
   useEffect(loadProfiles, [loadProfiles]);
 
+  // -- Derived --
+  const activeHandle = platform === "instagram" ? igHandle : tiktokHandle;
+  const canStart = activeHandle.trim().length > 0;
+
   // -- Start harvest --
   const handleStart = async () => {
-    if (!artistHandle.trim()) {
-      setMessage("Artist handle is required");
+    const handle = activeHandle.trim().replace(/^@/, "");
+    if (!handle) {
+      setMessage(`${platform === "instagram" ? "Instagram" : "TikTok"} handle is required`);
       return;
     }
     setStarting(true);
@@ -128,13 +134,12 @@ export default function HarvestPage() {
     try {
       const job = await startHarvestJob({
         platform,
-        artist_name: artistHandle.trim().replace(/^@/, ""),
+        artist_name: handle,
         harvest_type: harvestType,
         target_count: targetCount,
         device_serial: deviceSerial || undefined,
       });
-      setMessage(`Harvest job ${job.id} started`);
-      setArtistHandle("");
+      setMessage(`Harvest job ${job.id} started for @${handle} on ${platform}`);
       loadJobs();
     } catch (err: any) {
       setMessage(`Error: ${err.message}`);
@@ -168,14 +173,26 @@ export default function HarvestPage() {
             </select>
           </Field>
 
-          <Field label="Artist Handle">
+          <Field label="Instagram Handle">
             <div className="relative">
               <span className="absolute left-3 top-1.5 text-sm text-gray-500">@</span>
               <input
                 className={inputClass + " pl-7"}
                 placeholder="feliciathegoat"
-                value={artistHandle}
-                onChange={(e) => setArtistHandle(e.target.value)}
+                value={igHandle}
+                onChange={(e) => setIgHandle(e.target.value)}
+              />
+            </div>
+          </Field>
+
+          <Field label="TikTok Handle">
+            <div className="relative">
+              <span className="absolute left-3 top-1.5 text-sm text-gray-500">@</span>
+              <input
+                className={inputClass + " pl-7"}
+                placeholder="tylerthecreator"
+                value={tiktokHandle}
+                onChange={(e) => setTiktokHandle(e.target.value)}
               />
             </div>
           </Field>
@@ -214,7 +231,7 @@ export default function HarvestPage() {
           <div className="flex items-end">
             <button
               onClick={handleStart}
-              disabled={starting || !artistHandle.trim()}
+              disabled={starting || !canStart}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 px-6 py-1.5 rounded text-sm font-medium transition-colors"
             >
               {starting ? "Starting..." : "Start Harvest"}
