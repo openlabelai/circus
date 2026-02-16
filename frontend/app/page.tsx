@@ -39,6 +39,12 @@ export default function DashboardPage() {
           value={status.results_today.total}
           sub={`${status.results_today.successful} ok, ${status.results_today.failed} failed`}
         />
+        <StatCard label="Active Schedules" value={status.schedules ?? 0} />
+        <StatCard
+          label="Queue Depth"
+          value={(status.queue?.queued ?? 0) + (status.queue?.running ?? 0)}
+          sub={status.queue ? `${status.queue.queued} queued, ${status.queue.running} running` : ""}
+        />
       </div>
     </div>
   );

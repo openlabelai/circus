@@ -21,6 +21,8 @@ import type {
   Task,
   TaskResultRecord,
   StatusOverview,
+  ScheduledTask,
+  QueuedRun,
 } from "./types";
 
 export async function getPersonas(): Promise<{ results: PersonaSummary[] }> {
@@ -126,6 +128,63 @@ export async function getResults(date?: string): Promise<{ results: TaskResultRe
 
 export async function syncResults(): Promise<{ imported: number }> {
   return request("/results/sync/", { method: "POST" });
+}
+
+// -- Schedules --
+
+export async function getSchedules(): Promise<{ results: ScheduledTask[] }> {
+  return request("/schedules/");
+}
+
+export async function getSchedule(id: string): Promise<ScheduledTask> {
+  return request(`/schedules/${id}/`);
+}
+
+export async function createSchedule(data: Partial<ScheduledTask>): Promise<ScheduledTask> {
+  return request("/schedules/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function updateSchedule(id: string, data: Partial<ScheduledTask>): Promise<ScheduledTask> {
+  return request(`/schedules/${id}/`, { method: "PUT", body: JSON.stringify(data) });
+}
+
+export async function deleteSchedule(id: string): Promise<void> {
+  await fetch(`${API_URL}/schedules/${id}/`, { method: "DELETE" });
+}
+
+export async function pauseSchedule(id: string): Promise<{ status: string }> {
+  return request(`/schedules/${id}/pause/`, { method: "POST" });
+}
+
+export async function resumeSchedule(id: string): Promise<{ status: string }> {
+  return request(`/schedules/${id}/resume/`, { method: "POST" });
+}
+
+// -- Queue --
+
+export async function getQueue(params?: {
+  status?: string;
+  task_id?: string;
+  schedule?: string;
+}): Promise<{ results: QueuedRun[] }> {
+  const query = params
+    ? "?" + new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v) as [string, string][]
+      ).toString()
+    : "";
+  return request(`/queue/${query}`);
+}
+
+export async function enqueueTask(data: {
+  task_id: string;
+  device_serial?: string;
+  persona_id?: string;
+}): Promise<QueuedRun> {
+  return request("/queue/enqueue/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function cancelQueuedRun(id: string): Promise<{ status: string }> {
+  return request(`/queue/${id}/cancel/`, { method: "POST" });
 }
 
 // -- Status --

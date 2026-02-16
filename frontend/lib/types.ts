@@ -93,4 +93,47 @@ export interface StatusOverview {
     successful: number;
     failed: number;
   };
+  schedules: number;
+  queue: {
+    queued: number;
+    running: number;
+  };
+}
+
+export interface ScheduledTask {
+  id: string;
+  task: string;
+  task_name: string;
+  persona: string | null;
+  persona_name: string;
+  device_serial: string;
+  trigger_type: "cron" | "interval" | "once";
+  cron_expression: string;
+  interval_seconds: number;
+  run_at: string | null;
+  respect_active_hours: boolean;
+  status: "active" | "paused" | "expired";
+  created_at: string;
+  last_run_at: string | null;
+  next_run_at: string | null;
+}
+
+export interface QueuedRun {
+  id: string;
+  task: string;
+  task_name: string;
+  schedule: string | null;
+  schedule_id: string;
+  persona: string | null;
+  persona_name: string;
+  device_serial: string;
+  status: "queued" | "running" | "completed" | "failed" | "skipped" | "cancelled";
+  priority: number;
+  attempt: number;
+  max_retries: number;
+  queued_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  error: string;
+  result: number | null;
 }
