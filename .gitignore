@@ -8,3 +8,7 @@ venv/
 *.egg
 .pytest_cache/
 screenshots/
+db.sqlite3
+.DS_Store
+personas/
+results/
