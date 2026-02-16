@@ -1,6 +1,8 @@
+import random
 from datetime import date
 
 from django.conf import settings
+from django.db.models import Max
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
@@ -267,6 +269,10 @@ def status_overview(request):
             "queued": QueuedRun.objects.filter(status="queued").count(),
             "running": QueuedRun.objects.filter(status="running").count(),
         },
+        "warming": {
+            "active": ScheduledTask.objects.filter(is_warming=True, status="active").exists(),
+            "active_schedules": ScheduledTask.objects.filter(is_warming=True, status="active").count(),
+        },
     })
 
 
@@ -276,6 +282,13 @@ def status_overview(request):
 class ScheduledTaskViewSet(viewsets.ModelViewSet):
     queryset = ScheduledTask.objects.select_related("task", "persona").all()
     serializer_class = ScheduledTaskSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        is_warming = self.request.query_params.get("is_warming")
+        if is_warming is not None:
+            qs = qs.filter(is_warming=is_warming.lower() in ("true", "1"))
+        return qs
 
     def perform_create(self, serializer):
         instance = serializer.save()
@@ -382,3 +395,136 @@ class QueuedRunViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(
             QueuedRunSerializer(run).data, status=status.HTTP_201_CREATED
         )
+
+
+# -- Warming endpoints --
+
+WARMING_TASKS = [
+    "warm_scroll_feed",
+    "warm_like_posts",
+    "warm_explore",
+    "warm_watch_stories",
+    "warm_search_interest",
+]
+
+
+def _random_cron(hour_start, hour_end):
+    """Generate a random daily cron expression within the given hour range."""
+    hour = random.randint(hour_start, max(hour_start, hour_end - 1))
+    minute = random.randint(0, 59)
+    return f"{minute} {hour} * * *"
+
+
+@api_view(["POST"])
+def warming_activate(request):
+    """Create warming schedules for all personas with assigned devices."""
+    personas = Persona.objects.exclude(assigned_device="")
+    if not personas.exists():
+        return Response(
+            {"error": "No personas with assigned devices found"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Find warming tasks in the DB
+    warming_tasks = Task.objects.filter(name__in=WARMING_TASKS)
+    if not warming_tasks.exists():
+        return Response(
+            {"error": "Warming tasks not found. Run task sync first."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    warming_tasks_list = list(warming_tasks)
+
+    created_count = 0
+    for persona in personas:
+        # Remove any existing warming schedules for this persona
+        ScheduledTask.objects.filter(persona=persona, is_warming=True).delete()
+
+        # Pick 3 tasks: scroll_feed + like_posts + one random from the rest
+        primary_tasks = [t for t in warming_tasks_list if t.name in ("warm_scroll_feed", "warm_like_posts")]
+        extra_tasks = [t for t in warming_tasks_list if t.name not in ("warm_scroll_feed", "warm_like_posts")]
+        selected = primary_tasks + (random.sample(extra_tasks, min(1, len(extra_tasks))) if extra_tasks else [])
+
+        for task in selected:
+            cron = _random_cron(persona.active_hours_start, persona.active_hours_end)
+            schedule = ScheduledTask.objects.create(
+                task=task,
+                persona=persona,
+                device_serial=persona.assigned_device,
+                trigger_type="cron",
+                cron_expression=cron,
+                respect_active_hours=True,
+                is_warming=True,
+                status="active",
+            )
+            # Sync with live scheduler if running
+            try:
+                from api.scheduler import get_scheduler
+                scheduler = get_scheduler()
+                if scheduler._started:
+                    scheduler.sync_schedule(schedule)
+            except Exception:
+                pass
+            created_count += 1
+
+    return Response({
+        "status": "activated",
+        "personas": personas.count(),
+        "schedules_created": created_count,
+    })
+
+
+@api_view(["POST"])
+def warming_deactivate(request):
+    """Pause all warming schedules."""
+    warming_schedules = ScheduledTask.objects.filter(is_warming=True, status="active")
+    count = warming_schedules.count()
+
+    for schedule in warming_schedules:
+        schedule.status = "paused"
+        schedule.save(update_fields=["status"])
+        try:
+            from api.scheduler import get_scheduler
+            scheduler = get_scheduler()
+            if scheduler._started:
+                scheduler.remove_schedule(schedule.id)
+        except Exception:
+            pass
+
+    return Response({
+        "status": "deactivated",
+        "schedules_paused": count,
+    })
+
+
+@api_view(["GET"])
+def warming_status(request):
+    """Return warming state overview and per-persona details."""
+    warming_schedules = ScheduledTask.objects.filter(is_warming=True).select_related("task", "persona")
+
+    active_count = warming_schedules.filter(status="active").count()
+    paused_count = warming_schedules.filter(status="paused").count()
+    total_count = warming_schedules.count()
+
+    # Per-persona breakdown
+    personas_with_devices = Persona.objects.exclude(assigned_device="")
+    persona_details = []
+    for persona in personas_with_devices:
+        p_schedules = warming_schedules.filter(persona=persona)
+        persona_details.append({
+            "persona_id": persona.id,
+            "persona_name": persona.name,
+            "device_serial": persona.assigned_device,
+            "active_schedules": p_schedules.filter(status="active").count(),
+            "paused_schedules": p_schedules.filter(status="paused").count(),
+            "last_run": p_schedules.aggregate(last=Max("last_run_at"))["last"],
+        })
+
+    return Response({
+        "active": active_count > 0,
+        "schedules": {
+            "total": total_count,
+            "active": active_count,
+            "paused": paused_count,
+        },
+        "personas": persona_details,
+    })

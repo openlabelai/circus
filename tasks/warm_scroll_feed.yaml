@@ -1,0 +1,46 @@
+name: warm_scroll_feed
+description: Open Instagram and scroll the feed with random pauses to simulate casual browsing
+target_package: com.instagram.android
+timeout: 300.0
+retry_count: 0
+actions:
+- action: app_start
+  package: com.instagram.android
+- action: random_sleep
+  min: 2
+  max: 4
+# Dismiss any popups
+- action: if
+  condition:
+    element_exists:
+      text: Not Now
+  then:
+  - action: tap
+    text: Not Now
+  - action: random_sleep
+    min: 1
+    max: 2
+- action: if
+  condition:
+    element_exists:
+      text: Allow
+  then:
+  - action: tap
+    text: Not Now
+  - action: random_sleep
+    min: 1
+    max: 2
+# Scroll feed 10-20 times with random pauses
+- action: try
+  actions:
+  - action: repeat
+    count: 15
+    actions:
+    - action: swipe
+      direction: up
+    - action: random_sleep
+      min: 2
+      max: 6
+  on_error:
+  - action: screenshot
+- action: screenshot

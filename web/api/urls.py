@@ -16,4 +16,7 @@ urlpatterns = [
     path('devices/refresh/', views.device_refresh),
     path('devices/<str:serial>/', views.device_detail),
     path('status/', views.status_overview),
+    path('warming/activate/', views.warming_activate),
+    path('warming/deactivate/', views.warming_deactivate),
+    path('warming/status/', views.warming_status),
 ]

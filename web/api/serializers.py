@@ -73,7 +73,7 @@ class ScheduledTaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScheduledTask
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "last_run_at", "next_run_at"]
+        read_only_fields = ["id", "created_at", "last_run_at", "next_run_at", "is_warming"]
 
     def validate(self, data):
         trigger = data.get("trigger_type", getattr(self.instance, "trigger_type", None))

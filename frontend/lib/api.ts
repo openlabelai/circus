@@ -187,6 +187,22 @@ export async function cancelQueuedRun(id: string): Promise<{ status: string }> {
   return request(`/queue/${id}/cancel/`, { method: "POST" });
 }
 
+// -- Warming --
+
+import type { WarmingStatus } from "./types";
+
+export async function activateWarming(): Promise<{ status: string; personas: number; schedules_created: number }> {
+  return request("/warming/activate/", { method: "POST" });
+}
+
+export async function deactivateWarming(): Promise<{ status: string; schedules_paused: number }> {
+  return request("/warming/deactivate/", { method: "POST" });
+}
+
+export async function getWarmingStatus(): Promise<WarmingStatus> {
+  return request("/warming/status/");
+}
+
 // -- Status --
 
 export async function getStatus(): Promise<StatusOverview> {

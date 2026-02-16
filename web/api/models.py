@@ -127,6 +127,7 @@ class ScheduledTask(models.Model):
     run_at = models.DateTimeField(null=True, blank=True)
 
     respect_active_hours = models.BooleanField(default=True)
+    is_warming = models.BooleanField(default=False)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
 
     created_at = models.DateTimeField(auto_now_add=True)

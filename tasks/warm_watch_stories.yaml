@@ -1,0 +1,48 @@
+name: warm_watch_stories
+description: Watch Instagram stories from the feed to build viewing engagement
+target_package: com.instagram.android
+timeout: 240.0
+retry_count: 0
+actions:
+- action: app_start
+  package: com.instagram.android
+- action: random_sleep
+  min: 2
+  max: 4
+# Dismiss popups
+- action: if
+  condition:
+    element_exists:
+      text: Not Now
+  then:
+  - action: tap
+    text: Not Now
+  - action: random_sleep
+    min: 1
+    max: 2
+# Tap the first story circle at the top of the feed
+- action: try
+  actions:
+  - action: tap
+    coordinates: [120, 140]
+  - action: random_sleep
+    min: 3
+    max: 8
+  # Watch and swipe through stories
+  - action: repeat
+    count: 5
+    actions:
+    - action: swipe
+      direction: left
+    - action: random_sleep
+      min: 3
+      max: 8
+  on_error:
+  - action: screenshot
+# Press back to return to feed
+- action: press
+  key: back
+- action: random_sleep
+  min: 1
+  max: 2
+- action: screenshot

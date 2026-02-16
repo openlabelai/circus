@@ -98,6 +98,27 @@ export interface StatusOverview {
     queued: number;
     running: number;
   };
+  warming: {
+    active: boolean;
+    active_schedules: number;
+  };
+}
+
+export interface WarmingStatus {
+  active: boolean;
+  schedules: {
+    total: number;
+    active: number;
+    paused: number;
+  };
+  personas: {
+    persona_id: string;
+    persona_name: string;
+    device_serial: string;
+    active_schedules: number;
+    paused_schedules: number;
+    last_run: string | null;
+  }[];
 }
 
 export interface ScheduledTask {
@@ -112,6 +133,7 @@ export interface ScheduledTask {
   interval_seconds: number;
   run_at: string | null;
   respect_active_hours: boolean;
+  is_warming: boolean;
   status: "active" | "paused" | "expired";
   created_at: string;
   last_run_at: string | null;
