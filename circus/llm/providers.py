@@ -1,5 +1,7 @@
 """Multi-provider LLM configuration and unified calling interface."""
 
+from __future__ import annotations
+
 import os
 
 PROVIDERS = {
