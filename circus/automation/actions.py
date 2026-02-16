@@ -128,6 +128,8 @@ def execute_action(
             _do_wait_gone(driver, action)
         elif action_type == "clear":
             _do_clear(driver, action)
+        elif action_type == "open_url":
+            driver.open_url(action["url"])
         elif action_type == "vision":
             return _handle_vision(driver, action)
         elif action_type == "random_sleep":

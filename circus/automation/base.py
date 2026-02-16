@@ -68,3 +68,6 @@ class AutomationDriver(ABC):
 
     @abstractmethod
     def get_current_package(self) -> str | None: ...
+
+    @abstractmethod
+    def open_url(self, url: str) -> None: ...

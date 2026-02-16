@@ -1,37 +1,14 @@
 name: harvest_instagram_commenters
-description: Navigate to an artist's Instagram posts and extract commenter data using vision LLM
+description: Navigate directly to an artist's Instagram posts and extract commenter data using vision LLM
 target_package: com.instagram.android
 timeout: 600
 retry_count: 0
 actions:
-  - action: app_start
-    package: com.instagram.android
+  # Open the artist's profile directly via URL (avoids wrong search results)
+  - action: open_url
+    url: "https://www.instagram.com/{task.artist_name}/"
   - action: sleep
-    duration: 3.0
-
-  # Tap the search icon
-  - action: tap
-    resource_id: com.instagram.android:id/search_tab
-    timeout: 10
-
-  - action: sleep
-    duration: 1.5
-
-  # Type the artist name into search
-  - action: tap
-    resource_id: com.instagram.android:id/action_bar_search_edit_text
-    timeout: 10
-  - action: type
-    text: "{task.artist_name}"
-  - action: sleep
-    duration: 2.0
-
-  # Tap the first search result (the artist's profile)
-  - action: tap
-    resource_id: com.instagram.android:id/row_search_user_username
-    timeout: 10
-  - action: sleep
-    duration: 2.0
+    duration: 4.0
 
   # Tap the first post in the grid
   - action: tap

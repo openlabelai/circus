@@ -91,3 +91,6 @@ class U2Driver(AutomationDriver):
     def get_current_package(self) -> str | None:
         info = self.d.app_current()
         return info.get("package") if info else None
+
+    def open_url(self, url: str) -> None:
+        self.d.open_url(url)
