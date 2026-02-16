@@ -44,6 +44,21 @@ PURPOSES = ["persona_enrichment", "vision", "comment_generation", "content_gener
 _OPENAI_COMPATIBLE = {"openai", "minimax", "kimi", "deepseek"}
 
 
+def get_api_key(provider_id: str) -> str:
+    """Get API key for a provider: check DB first, then env var."""
+    try:
+        from api.models import ProviderAPIKey
+        obj = ProviderAPIKey.objects.filter(provider=provider_id).first()
+        if obj:
+            return obj.api_key
+    except Exception:
+        pass
+    info = PROVIDERS.get(provider_id)
+    if info:
+        return os.environ.get(info["env_var"], "")
+    return ""
+
+
 def get_available_providers() -> list[dict]:
     """Return providers with their key availability status."""
     result = []
@@ -51,7 +66,7 @@ def get_available_providers() -> list[dict]:
         result.append({
             "id": provider_id,
             "label": info["label"],
-            "has_key": bool(os.environ.get(info["env_var"], "")),
+            "has_key": bool(get_api_key(provider_id)),
             "models": info["models"],
         })
     return result
@@ -117,7 +132,7 @@ def call_llm(purpose: str, prompt: str, max_tokens: int = 300) -> str | None:
         if provider_info is None:
             return None
 
-        api_key = os.environ.get(provider_info["env_var"], "")
+        api_key = get_api_key(provider_id)
         if not api_key:
             return None
 

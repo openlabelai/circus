@@ -13,6 +13,8 @@ router.register(r'llm-config', views.LLMConfigViewSet)
 
 urlpatterns = [
     path('llm-config/providers/', views.llm_providers),
+    path('provider-keys/', views.provider_keys),
+    path('provider-keys/<str:provider>/', views.provider_key_delete),
     path('', include(router.urls)),
     path('devices/', views.device_list),
     path('devices/refresh/', views.device_refresh),

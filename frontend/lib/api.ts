@@ -205,7 +205,7 @@ export async function getWarmingStatus(): Promise<WarmingStatus> {
 
 // -- LLM Config --
 
-import type { LLMConfig, LLMProvider } from "./types";
+import type { LLMConfig, LLMProvider, ProviderKeyInfo } from "./types";
 
 export async function getLLMConfigs(): Promise<LLMConfig[]> {
   const data = await request<{ results: LLMConfig[] }>("/llm-config/");
@@ -221,6 +221,23 @@ export async function updateLLMConfig(id: number, data: Partial<LLMConfig>): Pro
 
 export async function getLLMProviders(): Promise<LLMProvider[]> {
   return request("/llm-config/providers/");
+}
+
+// -- Provider Keys --
+
+export async function getProviderKeys(): Promise<ProviderKeyInfo[]> {
+  return request("/provider-keys/");
+}
+
+export async function setProviderKey(provider: string, apiKey: string): Promise<any> {
+  return request("/provider-keys/", {
+    method: "POST",
+    body: JSON.stringify({ provider, api_key: apiKey }),
+  });
+}
+
+export async function deleteProviderKey(provider: string): Promise<any> {
+  return request(`/provider-keys/${provider}/`, { method: "DELETE" });
 }
 
 // -- Status --

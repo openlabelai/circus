@@ -118,6 +118,11 @@ class LLMConfigSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class ProviderAPIKeySerializer(serializers.Serializer):
+    provider = serializers.CharField()
+    api_key = serializers.CharField(write_only=True)
+
+
 class QueuedRunCreateSerializer(serializers.Serializer):
     task_id = serializers.CharField()
     device_serial = serializers.CharField(required=False, default="")

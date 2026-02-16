@@ -143,6 +143,13 @@ export interface LLMProvider {
   models: string[];
 }
 
+export interface ProviderKeyInfo {
+  provider: string;
+  label: string;
+  has_key: boolean;
+  masked_key: string;
+}
+
 export interface ScheduledTask {
   id: string;
   task: string;

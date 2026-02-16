@@ -432,6 +432,46 @@ def llm_providers(request):
     return Response(get_available_providers())
 
 
+@api_view(["GET", "POST"])
+def provider_keys(request):
+    from api.models import ProviderAPIKey
+    from circus.llm.providers import PROVIDERS
+
+    if request.method == "GET":
+        saved = {obj.provider: obj.api_key for obj in ProviderAPIKey.objects.all()}
+        result = []
+        for provider_id, info in PROVIDERS.items():
+            key = saved.get(provider_id, "")
+            result.append({
+                "provider": provider_id,
+                "label": info["label"],
+                "has_key": bool(key),
+                "masked_key": f"...{key[-4:]}" if len(key) >= 4 else "",
+            })
+        return Response(result)
+
+    # POST — upsert a key
+    provider_id = request.data.get("provider", "")
+    api_key = request.data.get("api_key", "")
+    if provider_id not in PROVIDERS:
+        return Response({"error": "Unknown provider"}, status=status.HTTP_400_BAD_REQUEST)
+    if not api_key:
+        return Response({"error": "api_key required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    obj, _created = ProviderAPIKey.objects.update_or_create(
+        provider=provider_id, defaults={"api_key": api_key}
+    )
+    return Response({"provider": provider_id, "status": "saved"})
+
+
+@api_view(["DELETE"])
+def provider_key_delete(request, provider):
+    from api.models import ProviderAPIKey
+
+    ProviderAPIKey.objects.filter(provider=provider).delete()
+    return Response({"provider": provider, "status": "deleted"})
+
+
 # -- Warming endpoints --
 
 WARMING_TASKS = [

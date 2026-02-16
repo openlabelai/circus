@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getLLMConfigs, getLLMProviders, updateLLMConfig } from "@/lib/api";
-import type { LLMConfig, LLMProvider } from "@/lib/types";
+import {
+  getLLMConfigs,
+  getLLMProviders,
+  updateLLMConfig,
+  getProviderKeys,
+  setProviderKey,
+  deleteProviderKey,
+} from "@/lib/api";
+import type { LLMConfig, LLMProvider, ProviderKeyInfo } from "@/lib/types";
 
 const PURPOSE_LABELS: Record<string, string> = {
   persona_enrichment: "Persona Enrichment",
@@ -18,12 +25,60 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
+  // API Keys state
+  const [keys, setKeys] = useState<ProviderKeyInfo[]>([]);
+  const [keyInputs, setKeyInputs] = useState<Record<string, string>>({});
+  const [keySaving, setKeySaving] = useState<string | null>(null);
+
+  function loadAll() {
     getLLMConfigs().then(setConfigs).catch(console.error);
     getLLMProviders().then(setProviders).catch(console.error);
-  }, []);
+    getProviderKeys().then(setKeys).catch(console.error);
+  }
 
-  const providersWithKey = providers.filter((p) => p.has_key);
+  useEffect(loadAll, []);
+
+  // --- API Keys handlers ---
+
+  async function handleSaveKey(provider: string) {
+    const value = keyInputs[provider];
+    if (!value) return;
+    setKeySaving(provider);
+    try {
+      await setProviderKey(provider, value);
+      setKeyInputs((prev) => ({ ...prev, [provider]: "" }));
+      // Refresh keys and providers to update has_key status
+      const [newKeys, newProviders] = await Promise.all([
+        getProviderKeys(),
+        getLLMProviders(),
+      ]);
+      setKeys(newKeys);
+      setProviders(newProviders);
+    } catch (e: any) {
+      console.error(e);
+    } finally {
+      setKeySaving(null);
+    }
+  }
+
+  async function handleDeleteKey(provider: string) {
+    setKeySaving(provider);
+    try {
+      await deleteProviderKey(provider);
+      const [newKeys, newProviders] = await Promise.all([
+        getProviderKeys(),
+        getLLMProviders(),
+      ]);
+      setKeys(newKeys);
+      setProviders(newProviders);
+    } catch (e: any) {
+      console.error(e);
+    } finally {
+      setKeySaving(null);
+    }
+  }
+
+  // --- LLM Config handlers ---
 
   function getModels(providerId: string): string[] {
     return providers.find((p) => p.id === providerId)?.models || [];
@@ -31,13 +86,10 @@ export default function SettingsPage() {
 
   function handleChange(config: LLMConfig, field: string, value: string | boolean | number) {
     const patch = { ...dirty[config.id], [field]: value };
-
-    // When provider changes, reset model to first available
     if (field === "provider") {
       const models = getModels(value as string);
       patch.model = models[0] || "";
     }
-
     setDirty({ ...dirty, [config.id]: patch });
   }
 
@@ -53,7 +105,6 @@ export default function SettingsPage() {
         updateLLMConfig(Number(id), patch)
       );
       const results = await Promise.all(updates);
-      // Merge results back
       setConfigs((prev) =>
         prev.map((c) => {
           const updated = results.find((r) => r.id === c.id);
@@ -75,6 +126,90 @@ export default function SettingsPage() {
     <div>
       <h2 className="text-2xl font-bold mb-6">Settings</h2>
 
+      {/* API Keys Section */}
+      <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-4">API Keys</h3>
+        <p className="text-sm text-gray-400 mb-4">
+          Enter API keys for LLM providers. Keys are stored in the database and
+          can also be set via environment variables as a fallback.
+        </p>
+
+        <div className="space-y-3">
+          {keys.map((k) => (
+            <div key={k.provider} className="flex items-center gap-3">
+              <span
+                className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  k.has_key ? "bg-green-400" : "bg-gray-600"
+                }`}
+              />
+              <span className="w-32 text-sm font-medium">{k.label}</span>
+
+              {k.has_key && !keyInputs[k.provider] ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <span className="text-sm text-gray-500 font-mono">
+                    {k.masked_key}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setKeyInputs((prev) => ({ ...prev, [k.provider]: "" }))
+                    }
+                    className="text-xs text-blue-400 hover:text-blue-300"
+                  >
+                    Change
+                  </button>
+                  <button
+                    onClick={() => handleDeleteKey(k.provider)}
+                    disabled={keySaving === k.provider}
+                    className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+                  >
+                    {keySaving === k.provider ? "..." : "Remove"}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-1">
+                  <input
+                    type="password"
+                    placeholder="Enter API key..."
+                    value={keyInputs[k.provider] || ""}
+                    onChange={(e) =>
+                      setKeyInputs((prev) => ({
+                        ...prev,
+                        [k.provider]: e.target.value,
+                      }))
+                    }
+                    className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono"
+                  />
+                  <button
+                    onClick={() => handleSaveKey(k.provider)}
+                    disabled={
+                      keySaving === k.provider || !keyInputs[k.provider]
+                    }
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-xs font-medium"
+                  >
+                    {keySaving === k.provider ? "..." : "Save"}
+                  </button>
+                  {k.has_key && (
+                    <button
+                      onClick={() =>
+                        setKeyInputs((prev) => {
+                          const next = { ...prev };
+                          delete next[k.provider];
+                          return next;
+                        })
+                      }
+                      className="text-xs text-gray-400 hover:text-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* LLM Configuration Section */}
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
         <h3 className="text-lg font-semibold mb-4">LLM Configuration</h3>
 
@@ -133,9 +268,9 @@ export default function SettingsPage() {
                       className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm"
                     >
                       <option value="">Not configured</option>
-                      {providersWithKey.map((p) => (
+                      {providers.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.label}
+                          {p.label}{p.has_key ? "" : " (no key)"}
                         </option>
                       ))}
                     </select>

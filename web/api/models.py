@@ -119,6 +119,14 @@ class LLMConfig(models.Model):
         return f"{self.purpose} → {self.provider}/{self.model}"
 
 
+class ProviderAPIKey(models.Model):
+    provider = models.CharField(max_length=50, unique=True)
+    api_key = models.CharField(max_length=500)
+
+    def __str__(self):
+        return self.provider
+
+
 class ScheduledTask(models.Model):
     """A schedule that triggers task runs (cron, interval, or one-shot)."""
 
