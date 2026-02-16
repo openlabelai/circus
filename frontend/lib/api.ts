@@ -208,6 +208,57 @@ export async function getWarmingStatus(): Promise<WarmingStatus> {
   return request("/warming/status/");
 }
 
+// -- Harvest --
+
+import type { HarvestJob, HarvestedProfile } from "./types";
+
+export async function getHarvestJobs(params?: {
+  artist?: string;
+  status?: string;
+}): Promise<{ results: HarvestJob[] }> {
+  const query = params
+    ? "?" + new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v) as [string, string][]
+      ).toString()
+    : "";
+  return request(`/harvest-jobs/${query}`);
+}
+
+export async function startHarvestJob(data: {
+  platform: string;
+  artist_name: string;
+  harvest_type: string;
+  target_count?: number;
+  device_serial?: string;
+}): Promise<HarvestJob> {
+  return request("/harvest-jobs/start/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getHarvestedProfiles(params?: {
+  artist?: string;
+  status?: string;
+  platform?: string;
+  source_type?: string;
+}): Promise<{ results: HarvestedProfile[] }> {
+  const query = params
+    ? "?" + new URLSearchParams(
+        Object.entries(params).filter(([, v]) => v) as [string, string][]
+      ).toString()
+    : "";
+  return request(`/harvest-profiles/${query}`);
+}
+
+export async function discardProfile(id: string): Promise<{ status: string }> {
+  return request(`/harvest-profiles/${id}/discard/`, { method: "POST" });
+}
+
+export async function markProfileUsed(id: string): Promise<{ status: string }> {
+  return request(`/harvest-profiles/${id}/mark_used/`, { method: "POST" });
+}
+
 // -- LLM Config --
 
 import type { LLMConfig, LLMProvider, ProviderKeyInfo } from "./types";
