@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getTask } from "@/lib/api";
+import { getTask, deleteTask } from "@/lib/api";
 import type { Task } from "@/lib/types";
 
 export default function TaskDetailPage() {
@@ -25,12 +25,24 @@ export default function TaskDetailPage() {
           &larr; Back
         </button>
         <h2 className="text-2xl font-bold">{task.name}</h2>
-        <Link
-          href={`/tasks/${id}/edit`}
-          className="ml-auto px-4 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium"
-        >
-          Edit Workflow
-        </Link>
+        <div className="ml-auto flex gap-2">
+          <Link
+            href={`/tasks/${id}/edit`}
+            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium"
+          >
+            Edit Workflow
+          </Link>
+          <button
+            onClick={async () => {
+              if (!confirm(`Delete task "${task.name}"? This will also remove the YAML file.`)) return;
+              await deleteTask(id);
+              router.push("/tasks");
+            }}
+            className="px-4 py-1.5 bg-red-600 hover:bg-red-700 rounded text-sm font-medium"
+          >
+            Delete
+          </button>
+        </div>
       </div>
 
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-5 mb-4">

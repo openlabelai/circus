@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getTasks, syncTasks, runTask, runTaskAll } from "@/lib/api";
+import { getTasks, syncTasks, runTask, runTaskAll, deleteTask } from "@/lib/api";
 import type { Task } from "@/lib/types";
 
 export default function TasksPage() {
@@ -51,6 +51,17 @@ export default function TasksPage() {
       setMessage(`Error: ${err.message}`);
     } finally {
       setRunning(null);
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`Delete task "${name}"? This will also remove the YAML file.`)) return;
+    try {
+      await deleteTask(id);
+      setMessage(`Deleted task "${name}"`);
+      load();
+    } catch (err: any) {
+      setMessage(`Error: ${err.message}`);
     }
   };
 
@@ -117,6 +128,12 @@ export default function TasksPage() {
                     className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs font-medium disabled:opacity-50"
                   >
                     Run All
+                  </button>
+                  <button
+                    onClick={() => handleDelete(t.id, t.name)}
+                    className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-xs font-medium"
+                  >
+                    Delete
                   </button>
                 </td>
               </tr>
