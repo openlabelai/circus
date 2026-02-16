@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import json
+import re as _re
 
 from circus.automation.base import AutomationDriver
 
@@ -40,6 +41,20 @@ def evaluate_condition(driver: AutomationDriver, condition: dict) -> bool:
     if "app_running" in condition:
         current = driver.get_current_package()
         return current == condition["app_running"].get("package")
+    if "screen_is" in condition:
+        hierarchy = driver.dump_hierarchy()
+        result = _detect_screen_from_hierarchy(hierarchy)
+        target = condition["screen_is"]
+        return target in result["screens"]
+    if "screen_not" in condition:
+        hierarchy = driver.dump_hierarchy()
+        result = _detect_screen_from_hierarchy(hierarchy)
+        target = condition["screen_not"]
+        return target not in result["screens"]
+    if "text_on_screen" in condition:
+        hierarchy = driver.dump_hierarchy()
+        target = condition["text_on_screen"]
+        return target in hierarchy
     return False
 
 
@@ -130,6 +145,8 @@ def execute_action(
             _do_clear(driver, action)
         elif action_type == "open_url":
             driver.open_url(action["url"])
+        elif action_type == "detect_screen":
+            return _handle_detect_screen(driver, action)
         elif action_type == "vision":
             return _handle_vision(driver, action)
         elif action_type == "random_sleep":
@@ -291,7 +308,96 @@ def _do_clear(driver: AutomationDriver, action: dict) -> None:
     driver.clear_text(**selector)
 
 
-def _handle_vision(driver: AutomationDriver, action: dict) -> ActionResult:
+# -- Screen detection via UI hierarchy --
+
+# Instagram screen signatures: resource IDs and text patterns that identify each screen
+_SCREEN_SIGNATURES: dict[str, list[dict]] = {
+    "instagram_profile": [
+        {"resource_id": "com.instagram.android:id/profile_tab_icon_view"},
+    ],
+    "instagram_followers": [
+        {"text_pattern": r"^\d[\d,.]*\s+followers$"},
+        {"text": "Followers"},
+    ],
+    "instagram_following": [
+        {"text": "Following"},
+    ],
+    "instagram_comments": [
+        {"resource_id": "com.instagram.android:id/layout_comment_thread_edittext"},
+    ],
+    "instagram_post": [
+        {"resource_id": "com.instagram.android:id/row_feed_comment_textview_layout"},
+    ],
+    "instagram_feed": [
+        {"resource_id": "com.instagram.android:id/feed_tab_icon_view"},
+    ],
+    "instagram_login": [
+        {"text": "Log in"},
+        {"text": "Log In"},
+    ],
+    "browser_chooser": [
+        {"text": "Open with"},
+        {"text": "Just once"},
+        {"resource_id": "android:id/resolver_list"},
+    ],
+}
+
+
+def _detect_screen_from_hierarchy(hierarchy: str) -> dict:
+    """Analyze UI hierarchy XML to determine the current screen."""
+    detected: list[str] = []
+    texts: list[str] = []
+    resource_ids: list[str] = []
+
+    # Extract all text and resource-id attributes from XML
+    for match in _re.finditer(r'text="([^"]*)"', hierarchy):
+        t = match.group(1).strip()
+        if t:
+            texts.append(t)
+    for match in _re.finditer(r'resource-id="([^"]*)"', hierarchy):
+        r = match.group(1).strip()
+        if r:
+            resource_ids.append(r)
+
+    # Match against signatures
+    for screen_name, signatures in _SCREEN_SIGNATURES.items():
+        for sig in signatures:
+            if "text" in sig and sig["text"] in texts:
+                detected.append(screen_name)
+                break
+            if "resource_id" in sig and sig["resource_id"] in resource_ids:
+                detected.append(screen_name)
+                break
+            if "text_pattern" in sig:
+                pattern = sig["text_pattern"]
+                if any(_re.search(pattern, t, _re.IGNORECASE) for t in texts):
+                    detected.append(screen_name)
+                    break
+
+    # Get the current package
+    package = ""
+    pkg_match = _re.search(r'package="([^"]*)"', hierarchy)
+    if pkg_match:
+        package = pkg_match.group(1)
+
+    return {
+        "screens": detected,
+        "screen": detected[0] if detected else "unknown",
+        "package": package,
+        "text_count": len(texts),
+        "texts_sample": texts[:20],
+    }
+
+
+def _handle_detect_screen(driver: AutomationDriver, action: dict) -> ActionResult:
+    """Detect the current screen using UI hierarchy analysis (instant, no LLM)."""
+    hierarchy = driver.dump_hierarchy()
+    result = _detect_screen_from_hierarchy(hierarchy)
+    logger.info("Screen detected: %s (package: %s)", result["screen"], result["package"])
+    return ActionResult(success=True, data=result)
+
+
+
     """Screenshot the screen and send to a vision LLM for extraction."""
     from circus.llm.providers import call_vision_llm
 

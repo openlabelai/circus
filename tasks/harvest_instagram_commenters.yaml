@@ -4,16 +4,38 @@ target_package: com.instagram.android
 timeout: 600
 retry_count: 0
 actions:
-  # Open the artist's profile directly via URL (avoids wrong search results)
+  # Open the artist's profile directly via URL
   - action: open_url
     url: "https://www.instagram.com/{task.artist_name}/"
   - action: sleep
-    duration: 4.0
+    duration: 2.0
+
+  # Handle browser chooser if it appears
+  - action: if
+    condition:
+      text_on_screen: "Just once"
+    then:
+      - action: tap
+        text: "Just once"
+        timeout: 3
+      - action: sleep
+        duration: 3.0
+
+  # Wait for Instagram to load the profile
+  - action: sleep
+    duration: 3.0
+
+  # Detect what screen we landed on
+  - action: detect_screen
 
   # Tap the first post in the grid
-  - action: tap
-    resource_id: com.instagram.android:id/media_image_button
-    timeout: 10
+  - action: try
+    actions:
+      - action: tap
+        resource_id: com.instagram.android:id/media_image_button
+        timeout: 10
+    on_error:
+      - action: detect_screen
   - action: sleep
     duration: 2.0
 
@@ -24,9 +46,13 @@ actions:
         text: "View all"
         timeout: 5
     on_error:
-      - action: tap
-        resource_id: com.instagram.android:id/row_feed_comment_textview_layout
-        timeout: 5
+      - action: try
+        actions:
+          - action: tap
+            resource_id: com.instagram.android:id/row_feed_comment_textview_layout
+            timeout: 5
+        on_error:
+          - action: detect_screen
   - action: sleep
     duration: 2.0
 

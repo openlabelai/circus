@@ -4,16 +4,46 @@ target_package: com.instagram.android
 timeout: 600
 retry_count: 0
 actions:
-  # Open the artist's profile directly via URL (avoids wrong search results)
+  # Open the artist's profile directly via URL
   - action: open_url
     url: "https://www.instagram.com/{task.artist_name}/"
   - action: sleep
-    duration: 4.0
+    duration: 2.0
+
+  # Handle browser chooser if it appears (tap "Just once" or Instagram)
+  - action: if
+    condition:
+      text_on_screen: "Just once"
+    then:
+      - action: tap
+        text: "Just once"
+        timeout: 3
+      - action: sleep
+        duration: 3.0
+
+  # Wait for Instagram to load the profile
+  - action: sleep
+    duration: 3.0
+
+  # Detect what screen we landed on
+  - action: detect_screen
 
   # Tap the followers count to open followers list
-  - action: tap
-    text: followers
-    timeout: 15
+  # Try multiple patterns since Instagram UI varies
+  - action: try
+    actions:
+      - action: tap
+        text: followers
+        timeout: 10
+    on_error:
+      - action: try
+        actions:
+          - action: tap
+            text: Followers
+            timeout: 5
+        on_error:
+          # Last resort: use detect_screen to log what we see
+          - action: detect_screen
   - action: sleep
     duration: 3.0
 

@@ -94,3 +94,6 @@ class U2Driver(AutomationDriver):
 
     def open_url(self, url: str) -> None:
         self.d.open_url(url)
+
+    def dump_hierarchy(self) -> str:
+        return self.d.dump_hierarchy()

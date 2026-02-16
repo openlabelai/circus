@@ -71,3 +71,8 @@ class AutomationDriver(ABC):
 
     @abstractmethod
     def open_url(self, url: str) -> None: ...
+
+    @abstractmethod
+    def dump_hierarchy(self) -> str:
+        """Return the UI hierarchy as XML string."""
+        ...
