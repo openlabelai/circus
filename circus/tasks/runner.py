@@ -90,8 +90,9 @@ class TaskRunner:
                 if result.data and action_def.get("action") == "screenshot":
                     screenshots.append(result.data)
 
-                # Accumulate vision extraction data
-                if result.data and action_def.get("action") == "vision":
+                # Accumulate extraction data from vision actions
+                # (including data bubbled up from nested control flow)
+                if result.data and action_def.get("action") != "screenshot":
                     if isinstance(result.data, list):
                         extraction_data.extend(result.data)
                     elif isinstance(result.data, dict):

@@ -46,12 +46,21 @@ def evaluate_condition(driver: AutomationDriver, condition: dict) -> bool:
 def execute_actions(
     driver: AutomationDriver, actions: list[dict], depth: int
 ) -> ActionResult:
-    """Execute a list of actions sequentially, used by control flow handlers."""
+    """Execute a list of actions sequentially, used by control flow handlers.
+
+    Collects data from all inner results into a list on the final ActionResult.
+    """
+    collected: list = []
     for action in actions:
         result = execute_action(driver, action, depth=depth + 1)
         if not result.success:
             return result
-    return ActionResult(success=True)
+        if result.data is not None:
+            if isinstance(result.data, list):
+                collected.extend(result.data)
+            else:
+                collected.append(result.data)
+    return ActionResult(success=True, data=collected if collected else None)
 
 
 def execute_action(
