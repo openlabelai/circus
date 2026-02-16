@@ -229,6 +229,8 @@ export async function startHarvestJob(data: {
   artist_name: string;
   harvest_type: string;
   target_count?: number;
+  priority?: number;
+  geographic_area?: string;
   device_serial?: string;
 }): Promise<HarvestJob> {
   return request("/harvest-jobs/start/", {

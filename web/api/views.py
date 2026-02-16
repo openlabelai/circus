@@ -531,6 +531,8 @@ class HarvestJobViewSet(viewsets.ReadOnlyModelViewSet):
             artist_name=data["artist_name"],
             harvest_type=harvest_type,
             target_count=data.get("target_count", 50),
+            priority=data.get("priority", 0),
+            geographic_area=data.get("geographic_area", ""),
             task=task,
             device_serial=data.get("device_serial", ""),
         )

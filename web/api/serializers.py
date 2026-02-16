@@ -150,6 +150,8 @@ class HarvestJobStartSerializer(serializers.Serializer):
     artist_name = serializers.CharField()
     harvest_type = serializers.ChoiceField(choices=["follower", "commenter"])
     target_count = serializers.IntegerField(required=False, default=50)
+    priority = serializers.IntegerField(required=False, default=0)
+    geographic_area = serializers.CharField(required=False, default="")
     device_serial = serializers.CharField(required=False, default="")
 
 

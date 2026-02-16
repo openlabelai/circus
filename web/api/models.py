@@ -129,6 +129,8 @@ class HarvestJob(models.Model):
     artist_name = models.CharField(max_length=200)
     harvest_type = models.CharField(max_length=20)
     target_count = models.IntegerField(default=50)
+    priority = models.IntegerField(default=0)  # higher = more important
+    geographic_area = models.CharField(max_length=200, blank=True, default="")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="queued")
     profiles_harvested = models.IntegerField(default=0)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="harvest_jobs")

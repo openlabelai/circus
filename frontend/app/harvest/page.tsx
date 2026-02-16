@@ -69,6 +69,8 @@ export default function HarvestPage() {
   const [tiktokHandle, setTiktokHandle] = useState("");
   const [harvestType, setHarvestType] = useState("follower");
   const [targetCount, setTargetCount] = useState(50);
+  const [priority, setPriority] = useState(0);
+  const [geoArea, setGeoArea] = useState("");
   const [deviceSerial, setDeviceSerial] = useState("");
   const [starting, setStarting] = useState(false);
   const [message, setMessage] = useState("");
@@ -137,6 +139,8 @@ export default function HarvestPage() {
         artist_name: handle,
         harvest_type: harvestType,
         target_count: targetCount,
+        priority: priority || undefined,
+        geographic_area: geoArea || undefined,
         device_serial: deviceSerial || undefined,
       });
       setMessage(`Harvest job ${job.id} started for @${handle} on ${platform}`);
@@ -215,6 +219,23 @@ export default function HarvestPage() {
             />
           </Field>
 
+          <Field label="Priority">
+            <select className={selectClass} value={priority} onChange={(e) => setPriority(Number(e.target.value))}>
+              <option value={0}>Normal</option>
+              <option value={1}>High</option>
+              <option value={2}>Urgent</option>
+            </select>
+          </Field>
+
+          <Field label="Geographic Area">
+            <input
+              className={inputClass}
+              placeholder="e.g. Los Angeles, USA"
+              value={geoArea}
+              onChange={(e) => setGeoArea(e.target.value)}
+            />
+          </Field>
+
           <Field label="Device">
             <select className={selectClass} value={deviceSerial} onChange={(e) => setDeviceSerial(e.target.value)}>
               <option value="">Auto (any available)</option>
@@ -258,6 +279,8 @@ export default function HarvestPage() {
                   <th className="pb-2 pr-4">ID</th>
                   <th className="pb-2 pr-4">Artist</th>
                   <th className="pb-2 pr-4">Type</th>
+                  <th className="pb-2 pr-4">Priority</th>
+                  <th className="pb-2 pr-4">Area</th>
                   <th className="pb-2 pr-4">Status</th>
                   <th className="pb-2 pr-4">Profiles</th>
                   <th className="pb-2 pr-4">Device</th>
@@ -271,6 +294,16 @@ export default function HarvestPage() {
                     <td className="py-2 pr-4 font-mono text-xs text-gray-500">{job.id}</td>
                     <td className="py-2 pr-4">@{job.artist_name}</td>
                     <td className="py-2 pr-4">{job.harvest_type}</td>
+                    <td className="py-2 pr-4">
+                      {job.priority === 2 ? (
+                        <span className="text-red-400 text-xs font-medium">Urgent</span>
+                      ) : job.priority === 1 ? (
+                        <span className="text-yellow-400 text-xs font-medium">High</span>
+                      ) : (
+                        <span className="text-gray-500 text-xs">Normal</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-4 text-gray-400 text-xs">{job.geographic_area || "-"}</td>
                     <td className="py-2 pr-4">
                       <StatusBadge status={job.status} />
                     </td>

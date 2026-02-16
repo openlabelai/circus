@@ -148,6 +148,8 @@ export interface HarvestJob {
   artist_name: string;
   harvest_type: string;
   target_count: number;
+  priority: number;
+  geographic_area: string;
   status: "queued" | "running" | "completed" | "failed";
   profiles_harvested: number;
   device_serial: string;
