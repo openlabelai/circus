@@ -4,6 +4,8 @@ Runs inside the Django process. APScheduler handles trigger timing,
 Django models track queue state, and a dedicated asyncio event loop
 executes tasks via the existing TaskRunner.
 """
+from __future__ import annotations
+
 import asyncio
 import logging
 import threading

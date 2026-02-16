@@ -3,6 +3,8 @@
 Uses the shared CircusScheduler executor loop instead of asyncio.run()
 per request, fixing event loop fragility and sharing the DevicePool.
 """
+from __future__ import annotations
+
 import asyncio
 
 from circus.persona.generator import generate_personas as _gen_personas

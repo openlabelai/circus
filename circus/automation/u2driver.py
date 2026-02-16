@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 import uiautomator2 as u2

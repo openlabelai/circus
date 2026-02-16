@@ -1,4 +1,6 @@
 """Sync between file-based storage (YAML/JSONL) and Django DB."""
+from __future__ import annotations
+
 import json
 import os
 
