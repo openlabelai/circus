@@ -14,7 +14,7 @@ from circus.device.models import Device
 from circus.device.pool import DevicePool
 from circus.exceptions import TaskError, TaskTimeoutError
 from circus.persona.storage import PersonaStore
-from circus.persona.templates import substitute_persona_vars
+from circus.persona.templates import substitute_persona_vars, substitute_task_vars
 from circus.tasks.models import Task
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ class TaskResult:
     duration: float
     error: str | None = None
     screenshots: list[Image.Image] = field(default_factory=list)
+    extraction_data: list[dict] = field(default_factory=list)
 
 
 class TaskRunner:
@@ -46,6 +47,7 @@ class TaskRunner:
         start = time.time()
         actions_completed = 0
         screenshots: list[Image.Image] = []
+        extraction_data: list[dict] = []
 
         try:
             await asyncio.to_thread(driver.connect, device.serial)
@@ -68,6 +70,10 @@ class TaskRunner:
                 if persona is not None:
                     resolved_action = substitute_persona_vars(action_def, persona)
 
+                # Substitute task variables
+                if task.variables:
+                    resolved_action = substitute_task_vars(resolved_action, task.variables)
+
                 logger.debug(
                     "  Action %d/%d: %s",
                     i + 1,
@@ -84,6 +90,13 @@ class TaskRunner:
                 if result.data and action_def.get("action") == "screenshot":
                     screenshots.append(result.data)
 
+                # Accumulate vision extraction data
+                if result.data and action_def.get("action") == "vision":
+                    if isinstance(result.data, list):
+                        extraction_data.extend(result.data)
+                    elif isinstance(result.data, dict):
+                        extraction_data.append(result.data)
+
                 actions_completed += 1
 
                 if self.config.action_delay > 0:
@@ -97,6 +110,7 @@ class TaskRunner:
                 actions_total=len(task.actions),
                 duration=time.time() - start,
                 screenshots=screenshots,
+                extraction_data=extraction_data,
             )
 
         except Exception as e:

@@ -1,6 +1,9 @@
 from rest_framework import serializers
 
-from api.models import LLMConfig, Persona, QueuedRun, ScheduledTask, ServiceCredential, Task, TaskResult
+from api.models import (
+    HarvestJob, HarvestedProfile, LLMConfig, Persona, QueuedRun,
+    ScheduledTask, ServiceCredential, Task, TaskResult,
+)
 
 
 class ServiceCredentialSerializer(serializers.ModelSerializer):
@@ -128,3 +131,30 @@ class QueuedRunCreateSerializer(serializers.Serializer):
     device_serial = serializers.CharField(required=False, default="")
     persona_id = serializers.CharField(required=False, default="")
     priority = serializers.IntegerField(required=False, default=0)
+
+
+class HarvestJobSerializer(serializers.ModelSerializer):
+    task_name = serializers.CharField(source="task.name", read_only=True)
+
+    class Meta:
+        model = HarvestJob
+        fields = "__all__"
+        read_only_fields = [
+            "id", "status", "profiles_harvested", "error",
+            "created_at", "started_at", "completed_at",
+        ]
+
+
+class HarvestJobStartSerializer(serializers.Serializer):
+    platform = serializers.CharField(default="instagram")
+    artist_name = serializers.CharField()
+    harvest_type = serializers.ChoiceField(choices=["follower", "commenter"])
+    target_count = serializers.IntegerField(required=False, default=50)
+    device_serial = serializers.CharField(required=False, default="")
+
+
+class HarvestedProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HarvestedProfile
+        fields = "__all__"
+        read_only_fields = ["id", "harvested_at"]

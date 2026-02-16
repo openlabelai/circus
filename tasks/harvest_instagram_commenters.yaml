@@ -1,0 +1,76 @@
+name: harvest_instagram_commenters
+description: Navigate to an artist's Instagram posts and extract commenter data using vision LLM
+target_package: com.instagram.android
+timeout: 600
+retry_count: 0
+actions:
+  - action: app_start
+    package: com.instagram.android
+  - action: sleep
+    duration: 3.0
+
+  # Tap the search icon
+  - action: tap
+    resource_id: com.instagram.android:id/search_tab
+    timeout: 10
+
+  - action: sleep
+    duration: 1.5
+
+  # Type the artist name into search
+  - action: tap
+    resource_id: com.instagram.android:id/action_bar_search_edit_text
+    timeout: 10
+  - action: type
+    text: "{task.artist_name}"
+  - action: sleep
+    duration: 2.0
+
+  # Tap the first search result (the artist's profile)
+  - action: tap
+    resource_id: com.instagram.android:id/row_search_user_username
+    timeout: 10
+  - action: sleep
+    duration: 2.0
+
+  # Tap the first post in the grid
+  - action: tap
+    resource_id: com.instagram.android:id/media_image_button
+    timeout: 10
+  - action: sleep
+    duration: 2.0
+
+  # Tap to view all comments
+  - action: try
+    actions:
+      - action: tap
+        text: "View all"
+        timeout: 5
+    on_error:
+      - action: tap
+        resource_id: com.instagram.android:id/row_feed_comment_textview_layout
+        timeout: 5
+  - action: sleep
+    duration: 2.0
+
+  # Scroll and extract commenters using vision LLM
+  - action: repeat
+    count: 8
+    actions:
+      - action: vision
+        prompt: >
+          Extract all visible comments from this Instagram comments section screenshot.
+          Return a JSON object with a "profiles" array. Each entry should have:
+          - "username": the commenter's Instagram handle
+          - "comment_text": the full comment text
+          - "comment_style": categorize the comment (e.g. "emoji_only", "short_reaction", "detailed_opinion", "question", "tag_friend", "lyrics_quote")
+          - "has_replies": true if there are visible replies to this comment
+          - "is_liked_by_author": true if the comment shows a heart/like from the post author
+          Return ONLY valid JSON, no markdown.
+        max_tokens: 1000
+
+      - action: swipe
+        direction: up
+      - action: random_sleep
+        min: 1.5
+        max: 3.0

@@ -6,6 +6,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+import json
+
 from circus.automation.base import AutomationDriver
 
 logger = logging.getLogger(__name__)
@@ -117,6 +119,8 @@ def execute_action(
             _do_wait_gone(driver, action)
         elif action_type == "clear":
             _do_clear(driver, action)
+        elif action_type == "vision":
+            return _handle_vision(driver, action)
         elif action_type == "random_sleep":
             time.sleep(random.uniform(action.get("min", 0.5), action.get("max", 2.0)))
         else:
@@ -274,3 +278,34 @@ def _do_clear(driver: AutomationDriver, action: dict) -> None:
     if "resource_id" in action:
         selector["resourceId"] = action["resource_id"]
     driver.clear_text(**selector)
+
+
+def _handle_vision(driver: AutomationDriver, action: dict) -> ActionResult:
+    """Screenshot the screen and send to a vision LLM for extraction."""
+    from circus.llm.providers import call_vision_llm
+
+    img = driver.screenshot()
+    prompt = action.get("prompt", "Describe what you see on screen.")
+    max_tokens = action.get("max_tokens", 500)
+
+    text = call_vision_llm("vision", img, prompt, max_tokens)
+    if text is None:
+        return ActionResult(success=False, error="Vision LLM returned no response")
+
+    # Try to parse JSON from the response
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        # Try to extract JSON from markdown code block
+        stripped = text.strip()
+        if stripped.startswith("```"):
+            lines = stripped.split("\n")
+            json_lines = lines[1:-1] if lines[-1].strip() == "```" else lines[1:]
+            try:
+                parsed = json.loads("\n".join(json_lines))
+            except json.JSONDecodeError:
+                parsed = {"raw_text": text}
+        else:
+            parsed = {"raw_text": text}
+
+    return ActionResult(success=True, data=parsed)

@@ -10,6 +10,8 @@ router.register(r'results', views.TaskResultViewSet, basename='taskresult')
 router.register(r'schedules', views.ScheduledTaskViewSet)
 router.register(r'queue', views.QueuedRunViewSet, basename='queuedrun')
 router.register(r'llm-config', views.LLMConfigViewSet)
+router.register(r'harvest-jobs', views.HarvestJobViewSet)
+router.register(r'harvest-profiles', views.HarvestedProfileViewSet)
 
 urlpatterns = [
     path('llm-config/providers/', views.llm_providers),

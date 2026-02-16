@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import base64
+import io
 import os
+
+from PIL import Image
 
 PROVIDERS = {
     "openai": {
@@ -74,7 +78,17 @@ def get_available_providers() -> list[dict]:
     return result
 
 
-def _call_openai_compatible(api_key: str, model: str, prompt: str, max_tokens: int, base_url: str | None = None) -> str:
+def _image_to_base64(image: Image.Image) -> str:
+    """Convert a PIL Image to a base64-encoded PNG string."""
+    buf = io.BytesIO()
+    image.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("utf-8")
+
+
+def _call_openai_compatible(
+    api_key: str, model: str, prompt: str, max_tokens: int,
+    base_url: str | None = None, image: Image.Image | None = None,
+) -> str:
     from openai import OpenAI
 
     kwargs: dict = {"api_key": api_key}
@@ -82,33 +96,65 @@ def _call_openai_compatible(api_key: str, model: str, prompt: str, max_tokens: i
         kwargs["base_url"] = base_url
 
     client = OpenAI(**kwargs)
+
+    if image is not None:
+        b64 = _image_to_base64(image)
+        content = [
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+            {"type": "text", "text": prompt},
+        ]
+    else:
+        content = prompt
+
     response = client.chat.completions.create(
         model=model,
         max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}],
+        messages=[{"role": "user", "content": content}],
     )
     return response.choices[0].message.content.strip()
 
 
-def _call_anthropic(api_key: str, model: str, prompt: str, max_tokens: int) -> str:
+def _call_anthropic(
+    api_key: str, model: str, prompt: str, max_tokens: int,
+    image: Image.Image | None = None,
+) -> str:
     from anthropic import Anthropic
 
     client = Anthropic(api_key=api_key)
+
+    if image is not None:
+        b64 = _image_to_base64(image)
+        content = [
+            {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": b64}},
+            {"type": "text", "text": prompt},
+        ]
+    else:
+        content = prompt
+
     response = client.messages.create(
         model=model,
         max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}],
+        messages=[{"role": "user", "content": content}],
     )
     return response.content[0].text.strip()
 
 
-def _call_google(api_key: str, model: str, prompt: str, max_tokens: int) -> str:
+def _call_google(
+    api_key: str, model: str, prompt: str, max_tokens: int,
+    image: Image.Image | None = None,
+) -> str:
     from google import genai
 
     client = genai.Client(api_key=api_key)
+
+    if image is not None:
+        contents = [image, prompt]
+    else:
+        contents = prompt
+
     response = client.models.generate_content(
         model=model,
-        contents=prompt,
+        contents=contents,
         config=genai.types.GenerateContentConfig(max_output_tokens=max_tokens),
     )
     return response.text.strip()
@@ -145,6 +191,54 @@ def call_llm(purpose: str, prompt: str, max_tokens: int = 300) -> str | None:
             return _call_anthropic(api_key, model, prompt, effective_max_tokens)
         elif provider_id == "google":
             return _call_google(api_key, model, prompt, effective_max_tokens)
+
+        return None
+    except Exception:
+        return None
+
+
+def call_vision_llm(
+    purpose: str, image: Image.Image, prompt: str, max_tokens: int = 500,
+) -> str | None:
+    """Send an image + prompt to a vision-capable LLM.
+
+    Uses the same config lookup as call_llm but passes the image to
+    the provider-specific handler.
+
+    Returns None if no config, no API key, or on any error.
+    """
+    try:
+        from api.models import LLMConfig
+
+        config = LLMConfig.objects.filter(purpose=purpose, enabled=True).first()
+        if config is None:
+            return None
+
+        provider_id = config.provider
+        model = config.model
+        effective_max_tokens = config.max_tokens or max_tokens
+
+        provider_info = PROVIDERS.get(provider_id)
+        if provider_info is None:
+            return None
+
+        api_key = get_api_key(provider_id)
+        if not api_key:
+            return None
+
+        if provider_id in _OPENAI_COMPATIBLE:
+            base_url = provider_info.get("base_url")
+            return _call_openai_compatible(
+                api_key, model, prompt, effective_max_tokens, base_url, image=image,
+            )
+        elif provider_id == "anthropic":
+            return _call_anthropic(
+                api_key, model, prompt, effective_max_tokens, image=image,
+            )
+        elif provider_id == "google":
+            return _call_google(
+                api_key, model, prompt, effective_max_tokens, image=image,
+            )
 
         return None
     except Exception:

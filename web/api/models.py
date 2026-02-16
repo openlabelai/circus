@@ -105,6 +105,7 @@ class TaskResult(models.Model):
     duration = models.FloatField()
     error = models.TextField(blank=True, null=True)
     screenshot_count = models.IntegerField(default=0)
+    extraction_data = models.JSONField(default=list)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -113,6 +114,64 @@ class TaskResult(models.Model):
     def __str__(self):
         status = "OK" if self.success else "FAIL"
         return f"{self.task_id}@{self.device_serial} [{status}]"
+
+
+class HarvestJob(models.Model):
+    STATUS_CHOICES = [
+        ("queued", "Queued"),
+        ("running", "Running"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+    ]
+
+    id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    platform = models.CharField(max_length=20)
+    artist_name = models.CharField(max_length=200)
+    harvest_type = models.CharField(max_length=20)
+    target_count = models.IntegerField(default=50)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="queued")
+    profiles_harvested = models.IntegerField(default=0)
+    task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="harvest_jobs")
+    device_serial = models.CharField(max_length=200, blank=True, default="")
+    error = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.artist_name} ({self.harvest_type}) [{self.status}]"
+
+
+class HarvestedProfile(models.Model):
+    STATUS_CHOICES = [
+        ("raw", "Raw"),
+        ("validated", "Validated"),
+        ("used", "Used"),
+        ("discarded", "Discarded"),
+    ]
+
+    id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    platform = models.CharField(max_length=20)
+    source_type = models.CharField(max_length=20)
+    source_artist = models.CharField(max_length=200)
+    profile_data = models.JSONField(default=dict)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="raw")
+    confidence_score = models.FloatField(default=0.0)
+    harvest_job = models.ForeignKey(
+        HarvestJob, on_delete=models.SET_NULL, null=True, blank=True, related_name="profiles",
+    )
+    screenshot_path = models.CharField(max_length=500, blank=True, default="")
+    harvested_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-harvested_at"]
+
+    def __str__(self):
+        username = self.profile_data.get("username", "unknown")
+        return f"{username}@{self.platform} [{self.status}]"
 
 
 class LLMConfig(models.Model):
