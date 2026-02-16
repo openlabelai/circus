@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from api.models import Persona, QueuedRun, ScheduledTask, ServiceCredential, Task, TaskResult
+from api.models import LLMConfig, Persona, QueuedRun, ScheduledTask, ServiceCredential, Task, TaskResult
 
 
 class ServiceCredentialSerializer(serializers.ModelSerializer):
@@ -110,6 +110,12 @@ class QueuedRunSerializer(serializers.ModelSerializer):
             "id", "status", "attempt", "queued_at", "started_at",
             "completed_at", "error", "result",
         ]
+
+
+class LLMConfigSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LLMConfig
+        fields = "__all__"
 
 
 class QueuedRunCreateSerializer(serializers.Serializer):

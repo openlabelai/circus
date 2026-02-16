@@ -9,8 +9,10 @@ router.register(r'tasks', views.TaskViewSet)
 router.register(r'results', views.TaskResultViewSet, basename='taskresult')
 router.register(r'schedules', views.ScheduledTaskViewSet)
 router.register(r'queue', views.QueuedRunViewSet, basename='queuedrun')
+router.register(r'llm-config', views.LLMConfigViewSet)
 
 urlpatterns = [
+    path('llm-config/providers/', views.llm_providers),
     path('', include(router.urls)),
     path('devices/', views.device_list),
     path('devices/refresh/', views.device_refresh),

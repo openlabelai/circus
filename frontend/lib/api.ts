@@ -203,6 +203,26 @@ export async function getWarmingStatus(): Promise<WarmingStatus> {
   return request("/warming/status/");
 }
 
+// -- LLM Config --
+
+import type { LLMConfig, LLMProvider } from "./types";
+
+export async function getLLMConfigs(): Promise<LLMConfig[]> {
+  const data = await request<{ results: LLMConfig[] }>("/llm-config/");
+  return data.results || [];
+}
+
+export async function updateLLMConfig(id: number, data: Partial<LLMConfig>): Promise<LLMConfig> {
+  return request(`/llm-config/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getLLMProviders(): Promise<LLMProvider[]> {
+  return request("/llm-config/providers/");
+}
+
 // -- Status --
 
 export async function getStatus(): Promise<StatusOverview> {

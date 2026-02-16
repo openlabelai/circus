@@ -127,6 +127,22 @@ export interface WarmingStatus {
   }[];
 }
 
+export interface LLMConfig {
+  id: number;
+  purpose: string;
+  provider: string;
+  model: string;
+  max_tokens: number;
+  enabled: boolean;
+}
+
+export interface LLMProvider {
+  id: string;
+  label: string;
+  has_key: boolean;
+  models: string[];
+}
+
 export interface ScheduledTask {
   id: string;
   task: string;

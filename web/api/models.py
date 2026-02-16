@@ -102,6 +102,23 @@ class TaskResult(models.Model):
         return f"{self.task_id}@{self.device_serial} [{status}]"
 
 
+class LLMConfig(models.Model):
+    PURPOSE_CHOICES = [
+        ("persona_enrichment", "Persona Enrichment"),
+        ("vision", "Vision & Recovery"),
+        ("comment_generation", "Comment Generation"),
+        ("content_generation", "Content Generation"),
+    ]
+    purpose = models.CharField(max_length=50, choices=PURPOSE_CHOICES, unique=True)
+    provider = models.CharField(max_length=50, blank=True, default="")
+    model = models.CharField(max_length=100, blank=True, default="")
+    max_tokens = models.IntegerField(default=300)
+    enabled = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.purpose} → {self.provider}/{self.model}"
+
+
 class ScheduledTask(models.Model):
     """A schedule that triggers task runs (cron, interval, or one-shot)."""
 

@@ -15,6 +15,7 @@ const navItems = [
   { href: "/schedules", label: "Schedules" },
   { href: "/queue", label: "Queue" },
   { href: "/results", label: "Results" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

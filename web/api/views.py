@@ -8,8 +8,9 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
-from api.models import Persona, QueuedRun, ScheduledTask, ServiceCredential, Task, TaskResult
+from api.models import LLMConfig, Persona, QueuedRun, ScheduledTask, ServiceCredential, Task, TaskResult
 from api.serializers import (
+    LLMConfigSerializer,
     PersonaListSerializer,
     PersonaSerializer,
     QueuedRunCreateSerializer,
@@ -407,6 +408,28 @@ class QueuedRunViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(
             QueuedRunSerializer(run).data, status=status.HTTP_201_CREATED
         )
+
+
+# -- LLM Config --
+
+
+class LLMConfigViewSet(viewsets.ModelViewSet):
+    queryset = LLMConfig.objects.all()
+    serializer_class = LLMConfigSerializer
+
+    def list(self, request, *args, **kwargs):
+        # Auto-create rows for any missing purposes
+        existing = set(LLMConfig.objects.values_list("purpose", flat=True))
+        for choice_val, _label in LLMConfig.PURPOSE_CHOICES:
+            if choice_val not in existing:
+                LLMConfig.objects.create(purpose=choice_val)
+        return super().list(request, *args, **kwargs)
+
+
+@api_view(["GET"])
+def llm_providers(request):
+    from circus.llm.providers import get_available_providers
+    return Response(get_available_providers())
 
 
 # -- Warming endpoints --
