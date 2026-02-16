@@ -51,10 +51,15 @@ export async function deletePersona(id: string): Promise<void> {
   await fetch(`${API_URL}/personas/${id}/`, { method: "DELETE" });
 }
 
-export async function generatePersonas(count: number, services?: string[]): Promise<PersonaSummary[]> {
+export async function generatePersonas(
+  count: number,
+  services?: string[],
+  genre?: string,
+  archetype?: string,
+): Promise<PersonaSummary[]> {
   return request("/personas/generate/", {
     method: "POST",
-    body: JSON.stringify({ count, services }),
+    body: JSON.stringify({ count, services, genre: genre || undefined, archetype: archetype || undefined }),
   });
 }
 

@@ -16,6 +16,21 @@ const TONE_POOL = [
   "Gen-Z", "motivational", "educational", "humorous", "chill",
 ];
 const GENDERS = ["male", "female", "non-binary"];
+const GENRE_POOL = [
+  "hip-hop", "indie-rock", "edm", "r&b", "latin", "k-pop", "pop", "country",
+];
+const ARCHETYPE_POOL = [
+  { value: "day_one_stan", label: "Day-One Stan" },
+  { value: "casual_viber", label: "Casual Viber" },
+  { value: "content_creator_fan", label: "Content Creator Fan" },
+  { value: "genre_head", label: "Genre Head" },
+];
+const DISCOVERY_STYLES = [
+  "algorithmic", "soundcloud_digger", "blog_reader", "dj_friend",
+  "playlist_curator", "radio_listener",
+];
+const PROFILE_AESTHETICS = ["dark_minimal", "colorful", "aesthetic", "no_theme"];
+const KNOWLEDGE_DEPTHS = ["deep", "surface"];
 const INTEREST_POOL = [
   "photography", "cooking", "travel", "fitness", "gaming", "music",
   "fashion", "tech", "art", "reading", "hiking", "yoga", "dance",
@@ -165,6 +180,77 @@ export default function PersonaForm({ initial = {}, onSave, isNew }: Props) {
             <textarea className={inputClass + " h-20"} value={form.content_style || ""} onChange={(e) => set("content_style", e.target.value)} placeholder="How do they post? Format preferences, caption style, emoji usage..." />
           </Field>
         </div>
+      </Section>
+
+      {/* Music Profile */}
+      <Section title="Music Profile">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <Field label="Genre">
+            <select className={selectClass} value={form.genre || ""} onChange={(e) => set("genre", e.target.value)}>
+              <option value="">Select...</option>
+              {GENRE_POOL.map((g) => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </Field>
+          <Field label="Archetype">
+            <select className={selectClass} value={form.archetype || ""} onChange={(e) => set("archetype", e.target.value)}>
+              <option value="">Select...</option>
+              {ARCHETYPE_POOL.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Music Discovery">
+            <select className={selectClass} value={form.music_discovery_style || ""} onChange={(e) => set("music_discovery_style", e.target.value)}>
+              <option value="">Select...</option>
+              {DISCOVERY_STYLES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </Field>
+          <Field label="Profile Aesthetic">
+            <select className={selectClass} value={form.profile_aesthetic || ""} onChange={(e) => set("profile_aesthetic", e.target.value)}>
+              <option value="">Select...</option>
+              {PROFILE_AESTHETICS.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </Field>
+          <Field label="Knowledge Depth">
+            <select className={selectClass} value={form.artist_knowledge_depth || ""} onChange={(e) => set("artist_knowledge_depth", e.target.value)}>
+              <option value="">Select...</option>
+              {KNOWLEDGE_DEPTHS.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </Field>
+          <Field label="Bio Template">
+            <input className={inputClass} value={form.bio_template || ""} onChange={(e) => set("bio_template", e.target.value)} placeholder="artist1 + artist2 | genre | city" />
+          </Field>
+        </div>
+        {(form.favorite_artists as string[] || []).length > 0 && (
+          <div className="mt-4">
+            <Field label="Favorite Artists (LLM-generated)">
+              <div className="flex flex-wrap gap-2">
+                {(form.favorite_artists as string[] || []).map((artist, i) => (
+                  <span key={i} className="px-2 py-1 bg-purple-900/50 border border-purple-700 rounded text-xs">{artist}</span>
+                ))}
+              </div>
+            </Field>
+          </div>
+        )}
+        {form.comment_style && Object.keys(form.comment_style).length > 0 && (
+          <div className="mt-4">
+            <Field label="Comment Style (LLM-generated)">
+              <pre className="bg-gray-800 border border-gray-700 rounded p-2 text-xs overflow-auto">{JSON.stringify(form.comment_style, null, 2)}</pre>
+            </Field>
+          </div>
+        )}
+        {form.engagement_pattern && Object.keys(form.engagement_pattern).length > 0 && (
+          <div className="mt-4">
+            <Field label="Engagement Pattern (LLM-generated)">
+              <pre className="bg-gray-800 border border-gray-700 rounded p-2 text-xs overflow-auto">{JSON.stringify(form.engagement_pattern, null, 2)}</pre>
+            </Field>
+          </div>
+        )}
+        {form.content_behavior && Object.keys(form.content_behavior).length > 0 && (
+          <div className="mt-4">
+            <Field label="Content Behavior (LLM-generated)">
+              <pre className="bg-gray-800 border border-gray-700 rounded p-2 text-xs overflow-auto">{JSON.stringify(form.content_behavior, null, 2)}</pre>
+            </Field>
+          </div>
+        )}
       </Section>
 
       {/* Location */}

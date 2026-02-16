@@ -75,6 +75,18 @@ class Persona:
     tone: str = ""
     background_story: str = ""
     content_style: str = ""
+    # Music fan profile
+    genre: str = ""
+    archetype: str = ""
+    favorite_artists: list[str] = field(default_factory=list)
+    music_discovery_style: str = ""
+    comment_style: dict = field(default_factory=dict)
+    bio_template: str = ""
+    username_style: str = ""
+    engagement_pattern: dict = field(default_factory=dict)
+    content_behavior: dict = field(default_factory=dict)
+    profile_aesthetic: str = ""
+    artist_knowledge_depth: str = ""
     behavior: BehavioralProfile = field(default_factory=BehavioralProfile)
     credentials: dict[str, ServiceCredentials] = field(default_factory=dict)
 
@@ -96,6 +108,17 @@ class Persona:
             "tone": self.tone,
             "background_story": self.background_story,
             "content_style": self.content_style,
+            "genre": self.genre,
+            "archetype": self.archetype,
+            "favorite_artists": self.favorite_artists,
+            "music_discovery_style": self.music_discovery_style,
+            "comment_style": self.comment_style,
+            "bio_template": self.bio_template,
+            "username_style": self.username_style,
+            "engagement_pattern": self.engagement_pattern,
+            "content_behavior": self.content_behavior,
+            "profile_aesthetic": self.profile_aesthetic,
+            "artist_knowledge_depth": self.artist_knowledge_depth,
             "behavior": self.behavior.to_dict(),
             "credentials": {k: v.to_dict() for k, v in self.credentials.items()},
         }
@@ -124,6 +147,17 @@ class Persona:
             tone=data.get("tone", ""),
             background_story=data.get("background_story", ""),
             content_style=data.get("content_style", ""),
+            genre=data.get("genre", ""),
+            archetype=data.get("archetype", ""),
+            favorite_artists=data.get("favorite_artists", []),
+            music_discovery_style=data.get("music_discovery_style", ""),
+            comment_style=data.get("comment_style", {}),
+            bio_template=data.get("bio_template", ""),
+            username_style=data.get("username_style", ""),
+            engagement_pattern=data.get("engagement_pattern", {}),
+            content_behavior=data.get("content_behavior", {}),
+            profile_aesthetic=data.get("profile_aesthetic", ""),
+            artist_knowledge_depth=data.get("artist_knowledge_depth", ""),
             behavior=behavior,
             credentials=creds,
         )

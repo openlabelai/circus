@@ -23,6 +23,18 @@ export interface Persona {
   tone: string;
   background_story: string;
   content_style: string;
+  // Music fan profile
+  genre: string;
+  archetype: string;
+  favorite_artists: string[];
+  music_discovery_style: string;
+  comment_style: Record<string, any>;
+  bio_template: string;
+  username_style: string;
+  engagement_pattern: Record<string, any>;
+  content_behavior: Record<string, any>;
+  profile_aesthetic: string;
+  artist_knowledge_depth: string;
   engagement_style: string;
   session_duration_min: number;
   session_duration_max: number;
@@ -44,6 +56,8 @@ export interface PersonaSummary {
   gender: string;
   niche: string;
   tone: string;
+  genre: string;
+  archetype: string;
   services: string[];
   assigned_device: string;
   created_at: string;

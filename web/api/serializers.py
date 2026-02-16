@@ -48,7 +48,7 @@ class PersonaListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Persona
-        fields = ["id", "name", "age", "username", "gender", "niche", "tone", "services", "assigned_device", "created_at"]
+        fields = ["id", "name", "age", "username", "gender", "niche", "tone", "genre", "archetype", "services", "assigned_device", "created_at"]
 
     def get_services(self, obj):
         return list(obj.credentials.values_list("service_name", flat=True))

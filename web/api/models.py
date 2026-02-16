@@ -27,6 +27,19 @@ class Persona(models.Model):
     background_story = models.TextField(blank=True, default="")
     content_style = models.TextField(blank=True, default="")
 
+    # Music fan profile
+    genre = models.CharField(max_length=100, blank=True, default="")
+    archetype = models.CharField(max_length=50, blank=True, default="")
+    favorite_artists = models.JSONField(default=list, blank=True)
+    music_discovery_style = models.CharField(max_length=100, blank=True, default="")
+    comment_style = models.JSONField(default=dict, blank=True)
+    bio_template = models.CharField(max_length=200, blank=True, default="")
+    username_style = models.CharField(max_length=50, blank=True, default="")
+    engagement_pattern = models.JSONField(default=dict, blank=True)
+    content_behavior = models.JSONField(default=dict, blank=True)
+    profile_aesthetic = models.CharField(max_length=50, blank=True, default="")
+    artist_knowledge_depth = models.CharField(max_length=20, blank=True, default="")
+
     # Behavioral profile (flattened)
     engagement_style = models.CharField(max_length=20, default="passive")
     session_duration_min = models.IntegerField(default=5)

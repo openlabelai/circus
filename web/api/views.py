@@ -47,12 +47,15 @@ class PersonaViewSet(viewsets.ModelViewSet):
         tone = request.data.get("tone", None)
         age_min = request.data.get("age_min", None)
         age_max = request.data.get("age_max", None)
+        genre = request.data.get("genre", None)
+        archetype = request.data.get("archetype", None)
 
         from api.services import generate_personas
         circus_personas = generate_personas(
             count, services,
             niche=niche, tone=tone,
             age_min=age_min, age_max=age_max,
+            genre=genre, archetype=archetype,
         )
 
         created = []
@@ -74,6 +77,17 @@ class PersonaViewSet(viewsets.ModelViewSet):
                 tone=cp.tone,
                 background_story=cp.background_story,
                 content_style=cp.content_style,
+                genre=cp.genre,
+                archetype=cp.archetype,
+                favorite_artists=cp.favorite_artists,
+                music_discovery_style=cp.music_discovery_style,
+                comment_style=cp.comment_style,
+                bio_template=cp.bio_template,
+                username_style=cp.username_style,
+                engagement_pattern=cp.engagement_pattern,
+                content_behavior=cp.content_behavior,
+                profile_aesthetic=cp.profile_aesthetic,
+                artist_knowledge_depth=cp.artist_knowledge_depth,
                 engagement_style=cp.behavior.engagement_style,
                 session_duration_min=cp.behavior.session_duration_min,
                 session_duration_max=cp.behavior.session_duration_max,

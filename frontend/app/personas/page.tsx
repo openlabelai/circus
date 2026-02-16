@@ -10,6 +10,8 @@ export default function PersonasPage() {
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
   const [genCount, setGenCount] = useState(1);
   const [genServices, setGenServices] = useState("instagram,tiktok");
+  const [genGenre, setGenGenre] = useState("");
+  const [genArchetype, setGenArchetype] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -23,7 +25,7 @@ export default function PersonasPage() {
     setLoading(true);
     try {
       const svcs = genServices.split(",").map((s) => s.trim()).filter(Boolean);
-      await generatePersonas(genCount, svcs.length ? svcs : undefined);
+      await generatePersonas(genCount, svcs.length ? svcs : undefined, genGenre || undefined, genArchetype || undefined);
       load();
     } finally {
       setLoading(false);
@@ -70,6 +72,33 @@ export default function PersonasPage() {
             placeholder="instagram,tiktok"
           />
         </div>
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Genre</label>
+          <select
+            value={genGenre}
+            onChange={(e) => setGenGenre(e.target.value)}
+            className="w-32 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm"
+          >
+            <option value="">Any</option>
+            {["hip-hop", "indie-rock", "edm", "r&b", "latin", "k-pop", "pop", "country"].map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Archetype</label>
+          <select
+            value={genArchetype}
+            onChange={(e) => setGenArchetype(e.target.value)}
+            className="w-40 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm"
+          >
+            <option value="">Any</option>
+            <option value="day_one_stan">Day-One Stan</option>
+            <option value="casual_viber">Casual Viber</option>
+            <option value="content_creator_fan">Content Creator Fan</option>
+            <option value="genre_head">Genre Head</option>
+          </select>
+        </div>
         <button
           onClick={handleGenerate}
           disabled={loading}
@@ -88,6 +117,7 @@ export default function PersonasPage() {
               <th className="text-left p-3">Name</th>
               <th className="text-left p-3">Age</th>
               <th className="text-left p-3">Username</th>
+              <th className="text-left p-3">Genre</th>
               <th className="text-left p-3">Services</th>
               <th className="text-left p-3">Device</th>
               <th className="text-left p-3">Actions</th>
@@ -100,6 +130,11 @@ export default function PersonasPage() {
                 <td className="p-3">{p.name}</td>
                 <td className="p-3">{p.age}</td>
                 <td className="p-3">{p.username}</td>
+                <td className="p-3">
+                  {p.genre && (
+                    <span className="px-2 py-0.5 bg-purple-900/50 border border-purple-700 rounded text-xs">{p.genre}</span>
+                  )}
+                </td>
                 <td className="p-3">
                   <div className="flex gap-1">
                     {p.services.map((s) => (
@@ -128,7 +163,7 @@ export default function PersonasPage() {
             ))}
             {personas.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-gray-500">
+                <td colSpan={8} className="p-6 text-center text-gray-500">
                   No personas yet. Generate some or create one manually.
                 </td>
               </tr>
