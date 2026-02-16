@@ -264,15 +264,17 @@ def persona() -> None:
 @click.option(
     "--services", default=None, help="Comma-separated services (e.g. instagram,tiktok)"
 )
-def persona_generate(count: int, services: str | None) -> None:
+@click.option("--niche", default=None, help="Niche for all generated personas (e.g. fitness)")
+@click.option("--tone", default=None, help="Tone for all generated personas (e.g. casual)")
+def persona_generate(count: int, services: str | None, niche: str | None, tone: str | None) -> None:
     """Generate synthetic personas."""
     svc_list = services.split(",") if services else None
     config = Config()
     store = PersonaStore(config.persona_dir)
-    personas = generate_personas(count, services=svc_list)
+    personas = generate_personas(count, services=svc_list, niche=niche, tone=tone)
     for p in personas:
         path = store.save(p)
-        console.print(f"  [green]+[/green] {p.id} — {p.name} -> {path}")
+        console.print(f"  [green]+[/green] {p.id} — {p.name} [{p.niche}/{p.tone}] -> {path}")
     console.print(f"[bold]Generated {count} persona(s)[/bold]")
 
 
@@ -288,6 +290,7 @@ def persona_list() -> None:
     table.add_column("ID", style="cyan")
     table.add_column("Name")
     table.add_column("Age")
+    table.add_column("Niche")
     table.add_column("Username")
     table.add_column("Services")
     table.add_column("Device", style="yellow")
@@ -295,7 +298,7 @@ def persona_list() -> None:
     for p in personas:
         device = assignments.get(p.id, "-")
         svcs = ", ".join(p.credentials.keys()) if p.credentials else "-"
-        table.add_row(p.id, p.name, str(p.age), p.username, svcs, device)
+        table.add_row(p.id, p.name, str(p.age), p.niche or "-", p.username, svcs, device)
 
     console.print(table)
     if not personas:

@@ -21,6 +21,12 @@ class Persona(models.Model):
     bio = models.TextField(blank=True, default="")
     interests = models.JSONField(default=list)
 
+    # Character profile
+    niche = models.CharField(max_length=100, blank=True, default="")
+    tone = models.CharField(max_length=100, blank=True, default="")
+    background_story = models.TextField(blank=True, default="")
+    content_style = models.TextField(blank=True, default="")
+
     # Behavioral profile (flattened)
     engagement_style = models.CharField(max_length=20, default="passive")
     session_duration_min = models.IntegerField(default=5)

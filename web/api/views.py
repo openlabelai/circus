@@ -42,9 +42,17 @@ class PersonaViewSet(viewsets.ModelViewSet):
     def generate(self, request):
         count = request.data.get("count", 1)
         services = request.data.get("services", None)
+        niche = request.data.get("niche", None)
+        tone = request.data.get("tone", None)
+        age_min = request.data.get("age_min", None)
+        age_max = request.data.get("age_max", None)
 
         from api.services import generate_personas
-        circus_personas = generate_personas(count, services)
+        circus_personas = generate_personas(
+            count, services,
+            niche=niche, tone=tone,
+            age_min=age_min, age_max=age_max,
+        )
 
         created = []
         for cp in circus_personas:
@@ -61,6 +69,10 @@ class PersonaViewSet(viewsets.ModelViewSet):
                 username=cp.username,
                 bio=cp.bio,
                 interests=cp.interests,
+                niche=cp.niche,
+                tone=cp.tone,
+                background_story=cp.background_story,
+                content_style=cp.content_style,
                 engagement_style=cp.behavior.engagement_style,
                 session_duration_min=cp.behavior.session_duration_min,
                 session_duration_max=cp.behavior.session_duration_max,

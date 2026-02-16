@@ -131,5 +131,16 @@ def run_task_on_all(task, device_filter: list[str] | None = None) -> dict:
     }
 
 
-def generate_personas(count: int, services: list[str] | None = None):
-    return _gen_personas(count, services=services)
+def generate_personas(
+    count: int,
+    services: list[str] | None = None,
+    niche: str | None = None,
+    tone: str | None = None,
+    age_min: int | None = None,
+    age_max: int | None = None,
+):
+    return _gen_personas(
+        count, services=services,
+        niche=niche, tone=tone,
+        age_min=age_min, age_max=age_max,
+    )

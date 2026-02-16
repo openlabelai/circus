@@ -71,6 +71,10 @@ class Persona:
     username: str = ""
     bio: str = ""
     interests: list[str] = field(default_factory=list)
+    niche: str = ""
+    tone: str = ""
+    background_story: str = ""
+    content_style: str = ""
     behavior: BehavioralProfile = field(default_factory=BehavioralProfile)
     credentials: dict[str, ServiceCredentials] = field(default_factory=dict)
 
@@ -88,6 +92,10 @@ class Persona:
             "username": self.username,
             "bio": self.bio,
             "interests": self.interests,
+            "niche": self.niche,
+            "tone": self.tone,
+            "background_story": self.background_story,
+            "content_style": self.content_style,
             "behavior": self.behavior.to_dict(),
             "credentials": {k: v.to_dict() for k, v in self.credentials.items()},
         }
@@ -112,6 +120,10 @@ class Persona:
             username=data.get("username", ""),
             bio=data.get("bio", ""),
             interests=data.get("interests", []),
+            niche=data.get("niche", ""),
+            tone=data.get("tone", ""),
+            background_story=data.get("background_story", ""),
+            content_style=data.get("content_style", ""),
             behavior=behavior,
             credentials=creds,
         )

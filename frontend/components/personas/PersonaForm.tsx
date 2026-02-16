@@ -6,6 +6,15 @@ import type { Persona, ServiceCredential } from "@/lib/types";
 const ENGAGEMENT_STYLES = ["passive", "active", "moderate"];
 const POSTING_FREQUENCIES = ["hourly", "daily", "weekly", "rarely"];
 const SCROLL_SPEEDS = ["slow", "medium", "fast"];
+const NICHE_POOL = [
+  "fitness", "cooking", "travel", "tech", "beauty", "fashion",
+  "parenting", "finance", "gaming", "music", "art", "wellness",
+  "photography", "food", "pets", "sports", "education", "comedy",
+];
+const TONE_POOL = [
+  "casual", "professional", "enthusiastic", "sarcastic", "warm",
+  "Gen-Z", "motivational", "educational", "humorous", "chill",
+];
 const GENDERS = ["male", "female", "non-binary"];
 const INTEREST_POOL = [
   "photography", "cooking", "travel", "fitness", "gaming", "music",
@@ -44,7 +53,9 @@ export default function PersonaForm({ initial = {}, onSave, isNew }: Props) {
   const [form, setForm] = useState<Partial<Persona>>({
     name: "", age: 25, gender: "", email: "", phone: "",
     city: "", state: "", country: "", username: "", bio: "",
-    interests: [], engagement_style: "passive",
+    interests: [], niche: "", tone: "",
+    background_story: "", content_style: "",
+    engagement_style: "passive",
     session_duration_min: 5, session_duration_max: 30,
     posting_frequency: "daily", active_hours_start: 9,
     active_hours_end: 22, scroll_speed: "medium",
@@ -126,6 +137,32 @@ export default function PersonaForm({ initial = {}, onSave, isNew }: Props) {
         <div className="mt-4">
           <Field label="Bio">
             <textarea className={inputClass + " h-20"} value={form.bio || ""} onChange={(e) => set("bio", e.target.value)} />
+          </Field>
+        </div>
+      </Section>
+
+      {/* Character */}
+      <Section title="Character">
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Niche">
+            <select className={selectClass} value={form.niche || ""} onChange={(e) => set("niche", e.target.value)}>
+              <option value="">Select...</option>
+              {NICHE_POOL.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </Field>
+          <Field label="Tone">
+            <select className={selectClass} value={form.tone || ""} onChange={(e) => set("tone", e.target.value)}>
+              <option value="">Select...</option>
+              {TONE_POOL.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </Field>
+        </div>
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          <Field label="Background Story">
+            <textarea className={inputClass + " h-20"} value={form.background_story || ""} onChange={(e) => set("background_story", e.target.value)} placeholder="Who is this person and why are they into their niche?" />
+          </Field>
+          <Field label="Content Style">
+            <textarea className={inputClass + " h-20"} value={form.content_style || ""} onChange={(e) => set("content_style", e.target.value)} placeholder="How do they post? Format preferences, caption style, emoji usage..." />
           </Field>
         </div>
       </Section>

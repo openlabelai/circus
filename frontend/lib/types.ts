@@ -19,6 +19,10 @@ export interface Persona {
   username: string;
   bio: string;
   interests: string[];
+  niche: string;
+  tone: string;
+  background_story: string;
+  content_style: string;
   engagement_style: string;
   session_duration_min: number;
   session_duration_max: number;
@@ -38,6 +42,8 @@ export interface PersonaSummary {
   age: number;
   username: string;
   gender: string;
+  niche: string;
+  tone: string;
   services: string[];
   assigned_device: string;
   created_at: string;
