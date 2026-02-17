@@ -7,14 +7,13 @@ import type { Task } from "@/lib/types";
 import TaskEditor from "@/components/workflow/TaskEditor";
 
 export default function EditTaskPage() {
-  const params = useParams();
+  const { id, tid } = useParams<{ id: string; tid: string }>();
   const router = useRouter();
-  const id = params.id as string;
   const [task, setTask] = useState<Task | null>(null);
 
   useEffect(() => {
-    getTask(id).then(setTask).catch(console.error);
-  }, [id]);
+    getTask(tid).then(setTask).catch(console.error);
+  }, [tid]);
 
   if (!task) return <p className="text-gray-400 p-8">Loading...</p>;
 
@@ -23,8 +22,8 @@ export default function EditTaskPage() {
       initialTask={task}
       isNew={false}
       onSave={async (data) => {
-        await updateTask(id, data);
-        router.push(`/tasks/${id}`);
+        await updateTask(tid, data);
+        router.push(`/projects/${id}/tasks/${tid}`);
       }}
     />
   );

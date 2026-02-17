@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { getProject, updateProject, deleteProject, getProjectStats } from "@/lib/api";
 import { useProject } from "@/lib/project-context";
 import ProjectForm from "@/components/projects/ProjectForm";
+import Link from "next/link";
 import type { Project, ProjectStats } from "@/lib/types";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -78,11 +79,11 @@ export default function ProjectDetailPage() {
   }
 
   const quickLinks = [
-    { label: "Personas", href: "/personas", count: stats?.persona_count },
-    { label: "Tasks", href: "/tasks", count: stats?.task_count },
-    { label: "Schedules", href: "/schedules", count: stats ? stats.schedules_active + stats.schedules_paused : undefined },
-    { label: "Results", href: "/results" },
-    { label: "Queue", href: "/queue", count: stats ? stats.queue.queued + stats.queue.running : undefined },
+    { label: "Personas", href: `/projects/${id}/personas`, count: stats?.persona_count },
+    { label: "Tasks", href: `/projects/${id}/tasks`, count: stats?.task_count },
+    { label: "Schedules", href: `/projects/${id}/schedules`, count: stats ? stats.schedules_active + stats.schedules_paused : undefined },
+    { label: "Results", href: `/projects/${id}/results` },
+    { label: "Queue", href: `/projects/${id}/queue`, count: stats ? stats.queue.queued + stats.queue.running : undefined },
   ];
 
   return (
@@ -144,14 +145,14 @@ export default function ProjectDetailPage() {
       {/* Quick links */}
       <div className="flex items-center gap-2 mb-6">
         {quickLinks.map((link) => (
-          <a
+          <Link
             key={link.href}
             href={link.href}
             className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded text-sm text-gray-300"
           >
             {link.label}
             {link.count !== undefined && <span className="ml-1 text-gray-500">({link.count})</span>}
-          </a>
+          </Link>
         ))}
       </div>
 

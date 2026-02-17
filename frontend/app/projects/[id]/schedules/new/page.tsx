@@ -1,17 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { createSchedule } from "@/lib/api";
 import ScheduleForm from "@/components/schedules/ScheduleForm";
 
 export default function NewSchedulePage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
   return (
     <div>
       <div className="flex items-center gap-4 mb-6">
         <button
-          onClick={() => router.push("/schedules")}
+          onClick={() => router.push(`/projects/${id}/schedules`)}
           className="text-gray-400 hover:text-white text-sm"
         >
           &larr; Back
@@ -22,7 +23,7 @@ export default function NewSchedulePage() {
         isNew
         onSave={async (data) => {
           await createSchedule(data);
-          router.push("/schedules");
+          router.push(`/projects/${id}/schedules`);
         }}
       />
     </div>

@@ -7,27 +7,26 @@ import { getTask, deleteTask } from "@/lib/api";
 import type { Task } from "@/lib/types";
 
 export default function TaskDetailPage() {
-  const params = useParams();
+  const { id, tid } = useParams<{ id: string; tid: string }>();
   const router = useRouter();
-  const id = params.id as string;
   const [task, setTask] = useState<Task | null>(null);
 
   useEffect(() => {
-    getTask(id).then(setTask).catch(console.error);
-  }, [id]);
+    getTask(tid).then(setTask).catch(console.error);
+  }, [tid]);
 
   if (!task) return <p className="text-gray-400">Loading...</p>;
 
   return (
     <div>
       <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => router.push("/tasks")} className="text-gray-400 hover:text-white text-sm">
+        <button onClick={() => router.push(`/projects/${id}/tasks`)} className="text-gray-400 hover:text-white text-sm">
           &larr; Back
         </button>
         <h2 className="text-2xl font-bold">{task.name}</h2>
         <div className="ml-auto flex gap-2">
           <Link
-            href={`/tasks/${id}/edit`}
+            href={`/projects/${id}/tasks/${tid}/edit`}
             className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 rounded text-sm font-medium"
           >
             Edit Workflow
@@ -35,8 +34,8 @@ export default function TaskDetailPage() {
           <button
             onClick={async () => {
               if (!confirm(`Delete task "${task.name}"? This will also remove the YAML file.`)) return;
-              await deleteTask(id);
-              router.push("/tasks");
+              await deleteTask(tid);
+              router.push(`/projects/${id}/tasks`);
             }}
             className="px-4 py-1.5 bg-red-600 hover:bg-red-700 rounded text-sm font-medium"
           >

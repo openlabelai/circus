@@ -1,10 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { createTask } from "@/lib/api";
 import TaskEditor from "@/components/workflow/TaskEditor";
 
 export default function NewTaskPage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
   return (
@@ -12,7 +13,7 @@ export default function NewTaskPage() {
       isNew={true}
       onSave={async (data) => {
         const task = await createTask(data);
-        router.push(`/tasks/${task.id}`);
+        router.push(`/projects/${id}/tasks/${task.id}`);
       }}
     />
   );

@@ -2,22 +2,22 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { getTasks, syncTasks, runTask, runTaskAll, deleteTask } from "@/lib/api";
-import { useProject } from "@/lib/project-context";
 import type { Task } from "@/lib/types";
 
 export default function TasksPage() {
-  const { activeProject } = useProject();
+  const { id } = useParams<{ id: string }>();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   const load = () => {
-    getTasks(activeProject?.id).then((d) => setTasks(d.results || [])).catch(console.error);
+    getTasks(id).then((d) => setTasks(d.results || [])).catch(console.error);
   };
 
-  useEffect(load, [activeProject?.id]);
+  useEffect(load, [id]);
 
   const handleSync = async () => {
     setSyncing(true);
@@ -30,11 +30,11 @@ export default function TasksPage() {
     }
   };
 
-  const handleRun = async (id: string) => {
-    setRunning(id);
+  const handleRun = async (taskId: string) => {
+    setRunning(taskId);
     setMessage("");
     try {
-      const res = await runTask(id);
+      const res = await runTask(taskId);
       setMessage(res.success ? `Task completed on ${res.device_serial}` : `Failed: ${res.error}`);
     } catch (err: any) {
       setMessage(`Error: ${err.message}`);
@@ -43,11 +43,11 @@ export default function TasksPage() {
     }
   };
 
-  const handleRunAll = async (id: string) => {
-    setRunning(id);
+  const handleRunAll = async (taskId: string) => {
+    setRunning(taskId);
     setMessage("");
     try {
-      const res = await runTaskAll(id);
+      const res = await runTaskAll(taskId);
       setMessage(`${res.successful}/${res.total_devices} succeeded in ${res.duration}s`);
     } catch (err: any) {
       setMessage(`Error: ${err.message}`);
@@ -56,10 +56,10 @@ export default function TasksPage() {
     }
   };
 
-  const handleDelete = async (id: string, name: string) => {
+  const handleDelete = async (taskId: string, name: string) => {
     if (!confirm(`Delete task "${name}"? This will also remove the YAML file.`)) return;
     try {
-      await deleteTask(id);
+      await deleteTask(taskId);
       setMessage(`Deleted task "${name}"`);
       load();
     } catch (err: any) {
@@ -73,7 +73,7 @@ export default function TasksPage() {
         <h2 className="text-2xl font-bold">Tasks</h2>
         <div className="flex gap-2">
           <Link
-            href="/tasks/new"
+            href={`/projects/${id}/tasks/new`}
             className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md text-sm font-medium"
           >
             + New Task
@@ -109,7 +109,7 @@ export default function TasksPage() {
             {tasks.map((t) => (
               <tr key={t.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
                 <td className="p-3">
-                  <Link href={`/tasks/${t.id}`} className="text-blue-400 hover:text-blue-300">
+                  <Link href={`/projects/${id}/tasks/${t.id}`} className="text-blue-400 hover:text-blue-300">
                     {t.name}
                   </Link>
                 </td>

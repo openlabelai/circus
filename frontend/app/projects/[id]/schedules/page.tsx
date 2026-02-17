@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   getSchedules,
   deleteSchedule,
   pauseSchedule,
   resumeSchedule,
 } from "@/lib/api";
-import { useProject } from "@/lib/project-context";
 import type { ScheduledTask } from "@/lib/types";
 
 const statusColors: Record<string, string> = {
@@ -32,21 +32,21 @@ function formatTrigger(s: ScheduledTask) {
 }
 
 export default function SchedulesPage() {
-  const { activeProject } = useProject();
+  const { id } = useParams<{ id: string }>();
   const [schedules, setSchedules] = useState<ScheduledTask[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
 
   const load = () => {
-    getSchedules(activeProject?.id)
+    getSchedules(id)
       .then((d) => setSchedules(d.results || []))
       .catch(console.error);
   };
 
-  useEffect(load, [activeProject?.id]);
+  useEffect(load, [id]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm(`Delete schedule ${id}?`)) return;
-    await deleteSchedule(id);
+  const handleDelete = async (scheduleId: string) => {
+    if (!confirm(`Delete schedule ${scheduleId}?`)) return;
+    await deleteSchedule(scheduleId);
     load();
   };
 
@@ -69,7 +69,7 @@ export default function SchedulesPage() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Schedules</h2>
         <Link
-          href="/schedules/new"
+          href={`/projects/${id}/schedules/new`}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-md text-sm font-medium"
         >
           + New Schedule
@@ -120,7 +120,7 @@ export default function SchedulesPage() {
                 <td className="p-3">
                   <div className="flex gap-2">
                     <Link
-                      href={`/schedules/${s.id}`}
+                      href={`/projects/${id}/schedules/${s.id}`}
                       className="text-blue-400 hover:text-blue-300 text-xs"
                     >
                       Edit
