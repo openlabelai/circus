@@ -13,10 +13,11 @@ from django.db import models
 from django.db.models import Count
 
 from api.models import (
-    LLMConfig, Persona, Project, QueuedRun,
+    ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
     ScheduledTask, ServiceCredential, Task, TaskResult,
 )
 from api.serializers import (
+    ArtistProfileSerializer,
     LLMConfigSerializer,
     PersonaListSerializer,
     PersonaSerializer,
@@ -35,6 +36,44 @@ def _project_filter(request):
     if project_id:
         return {"project_id": project_id}
     return {}
+
+
+class ArtistProfileViewSet(viewsets.ModelViewSet):
+    queryset = ArtistProfile.objects.all()
+    serializer_class = ArtistProfileSerializer
+
+    @action(detail=True, methods=["post"])
+    def research(self, request, pk=None):
+        profile = self.get_object()
+        if profile.status == "researching":
+            return Response(
+                {"error": "Research already in progress"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile.status = "researching"
+        profile.error_message = ""
+        profile.save(update_fields=["status", "error_message"])
+
+        from circus.persona.artist_research import research_artist
+        result = research_artist(
+            artist_name=profile.artist_name,
+            genre=profile.genre,
+            platform=profile.platform,
+            social_handles=profile.social_handles,
+        )
+
+        if result["success"]:
+            profile.profile_data = result["profile_data"]
+            profile.raw_profile_text = result["raw_text"]
+            profile.status = "completed"
+            profile.error_message = ""
+        else:
+            profile.status = "failed"
+            profile.error_message = result["error"] or "Unknown error"
+
+        profile.save()
+        return Response(ArtistProfileSerializer(profile).data)
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -122,6 +161,19 @@ class PersonaViewSet(viewsets.ModelViewSet):
         target_artist = request.data.get("target_artist", None)
         project_id = request.data.get("project", None)
 
+        # Look up the project's artist profile for enrichment
+        artist_profile_data = None
+        if project_id:
+            try:
+                project = Project.objects.get(id=project_id)
+                if project.artist_profile and project.artist_profile.status == "completed":
+                    artist_profile_data = project.artist_profile.profile_data
+                    # Auto-fill target_artist from profile if not explicitly provided
+                    if not target_artist and project.artist_profile.artist_name:
+                        target_artist = project.artist_profile.artist_name
+            except Project.DoesNotExist:
+                pass
+
         from api.services import generate_personas
         circus_personas = generate_personas(
             count, services,
@@ -129,6 +181,7 @@ class PersonaViewSet(viewsets.ModelViewSet):
             age_min=age_min, age_max=age_max,
             genre=genre, archetype=archetype,
             target_artist=target_artist,
+            artist_profile_data=artist_profile_data,
         )
 
         created = []

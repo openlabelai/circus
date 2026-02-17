@@ -7,6 +7,36 @@ def _short_uuid():
     return uuid.uuid4().hex[:8]
 
 
+class ArtistProfile(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("researching", "Researching"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+    ]
+
+    id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    artist_name = models.CharField(max_length=200)
+    genre = models.CharField(max_length=100, blank=True, default="")
+    platform = models.CharField(max_length=50, blank=True, default="")
+    social_handles = models.JSONField(default=dict, blank=True)
+
+    profile_data = models.JSONField(default=dict, blank=True)
+    raw_profile_text = models.TextField(blank=True, default="")
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    error_message = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.artist_name} ({self.status})"
+
+
 class Project(models.Model):
     STATUS_CHOICES = [
         ("planning", "Planning"),
@@ -20,6 +50,12 @@ class Project(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")
     color = models.CharField(max_length=7, blank=True, default="#6366f1")
+
+    # Artist profile
+    artist_profile = models.ForeignKey(
+        ArtistProfile, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="projects",
+    )
 
     # Timeline
     start_date = models.DateField(null=True, blank=True)
@@ -169,6 +205,7 @@ class LLMConfig(models.Model):
         ("vision", "Vision & Recovery"),
         ("comment_generation", "Comment Generation"),
         ("content_generation", "Content Generation"),
+        ("artist_research", "Artist Research"),
     ]
     purpose = models.CharField(max_length=50, choices=PURPOSE_CHOICES, unique=True)
     provider = models.CharField(max_length=50, blank=True, default="")

@@ -25,9 +25,10 @@ function withProject(path: string, projectId?: string, extra?: Record<string, st
   return qs ? `${path}?${qs}` : path;
 }
 
-// -- Projects --
+// -- Artist Profiles --
 
 import type {
+  ArtistProfile,
   Persona,
   PersonaSummary,
   Project,
@@ -38,6 +39,32 @@ import type {
   ScheduledTask,
   QueuedRun,
 } from "./types";
+
+export async function getArtistProfiles(): Promise<{ results: ArtistProfile[] }> {
+  return request("/artist-profiles/");
+}
+
+export async function getArtistProfile(id: string): Promise<ArtistProfile> {
+  return request(`/artist-profiles/${id}/`);
+}
+
+export async function createArtistProfile(data: Partial<ArtistProfile>): Promise<ArtistProfile> {
+  return request("/artist-profiles/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function updateArtistProfile(id: string, data: Partial<ArtistProfile>): Promise<ArtistProfile> {
+  return request(`/artist-profiles/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export async function deleteArtistProfile(id: string): Promise<void> {
+  await fetch(`${API_URL}/artist-profiles/${id}/`, { method: "DELETE" });
+}
+
+export async function runArtistResearch(id: string): Promise<ArtistProfile> {
+  return request(`/artist-profiles/${id}/research/`, { method: "POST" });
+}
+
+// -- Projects --
 
 export async function getProjects(): Promise<{ results: Project[] }> {
   return request("/projects/");

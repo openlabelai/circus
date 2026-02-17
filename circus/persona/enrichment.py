@@ -1,11 +1,14 @@
 """LLM-powered persona enrichment."""
 
+from __future__ import annotations
+
 import json
+from typing import Optional
 
 from circus.persona.models import Persona
 
 
-def enrich_persona(persona: Persona, target_artist: str = "") -> Persona:
+def enrich_persona(persona: Persona, target_artist: str = "", artist_profile_data: Optional[dict] = None) -> Persona:
     """Use an LLM to generate coherent character fields for a persona.
 
     Fills background_story, content_style, and rewrites bio to be coherent
@@ -19,7 +22,33 @@ def enrich_persona(persona: Persona, target_artist: str = "") -> Persona:
     music_fields = ""
     artist_targeting = ""
 
-    if target_artist:
+    if target_artist and artist_profile_data:
+        vocab = ", ".join(artist_profile_data.get("fan_vocabulary", [])[:20])
+        slang = ", ".join(artist_profile_data.get("fan_slang", [])[:10])
+        similar = ", ".join(artist_profile_data.get("similar_artists", [])[:8])
+        culture = artist_profile_data.get("fanbase_culture", "")
+        hashtags = ", ".join(artist_profile_data.get("key_hashtags", [])[:10])
+        jokes = ", ".join(artist_profile_data.get("inside_jokes_references", [])[:8])
+        aesthetic = artist_profile_data.get("artist_style_aesthetic", "")
+        engagement = json.dumps(artist_profile_data.get("engagement_patterns", {}))
+        artist_targeting = f"""
+- Target Artist: {target_artist}
+Generate this persona as a believable fan of {target_artist}.
+
+DETAILED ARTIST PROFILE (use this to make the persona authentic):
+- Fan Vocabulary: {vocab}
+- Fan Slang: {slang}
+- Similar Artists: {similar}
+- Fanbase Culture: {culture}
+- Key Hashtags: {hashtags}
+- Inside Jokes/References: {jokes}
+- Artist Aesthetic: {aesthetic}
+- Engagement Patterns: {engagement}
+
+favorite_artists MUST include {target_artist} plus artists from: {similar}
+Comment vocabulary MUST use terms from the fan vocabulary and slang above.
+Comments should reference inside jokes and match real fan comment patterns."""
+    elif target_artist:
         artist_targeting = f"""
 - Target Artist: {target_artist}
 Generate this persona as a believable fan of {target_artist}.

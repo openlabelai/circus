@@ -27,6 +27,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
 
   const navItems = [
     { href: prefix, label: "Overview" },
+    { href: `${prefix}/research`, label: "Artist Research" },
     { href: `${prefix}/personas`, label: "Personas" },
     { href: `${prefix}/tasks`, label: "Tasks" },
     { href: `${prefix}/schedules`, label: "Schedules" },

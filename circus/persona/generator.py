@@ -144,6 +144,7 @@ def generate_persona(
     genre: str | None = None,
     archetype: str | None = None,
     target_artist: str | None = None,
+    artist_profile_data: dict | None = None,
 ) -> Persona:
     """Generate a single synthetic persona."""
     if fake is None:
@@ -228,7 +229,7 @@ def generate_persona(
 
     # Enrich with LLM (generates background_story, content_style, rewrites bio)
     from circus.persona.enrichment import enrich_persona
-    persona = enrich_persona(persona, target_artist=chosen_target_artist)
+    persona = enrich_persona(persona, target_artist=chosen_target_artist, artist_profile_data=artist_profile_data)
 
     return persona
 
@@ -243,6 +244,7 @@ def generate_personas(
     genre: str | None = None,
     archetype: str | None = None,
     target_artist: str | None = None,
+    artist_profile_data: dict | None = None,
 ) -> list[Persona]:
     """Generate multiple personas with a shared Faker instance."""
     fake = Faker()
@@ -253,6 +255,7 @@ def generate_personas(
             age_min=age_min, age_max=age_max,
             genre=genre, archetype=archetype,
             target_artist=target_artist,
+            artist_profile_data=artist_profile_data,
         )
         for _ in range(count)
     ]

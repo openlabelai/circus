@@ -1,9 +1,26 @@
 from rest_framework import serializers
 
 from api.models import (
-    LLMConfig, Persona, Project, QueuedRun,
+    ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
     ScheduledTask, ServiceCredential, Task, TaskResult,
 )
+
+
+class ArtistProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ArtistProfile
+        fields = "__all__"
+        read_only_fields = [
+            "id", "profile_data", "raw_profile_text",
+            "status", "error_message", "created_at", "updated_at",
+        ]
+
+
+class ArtistProfileSummarySerializer(serializers.ModelSerializer):
+    """Lightweight serializer for embedding in project responses."""
+    class Meta:
+        model = ArtistProfile
+        fields = ["id", "artist_name", "genre", "platform", "status"]
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -11,6 +28,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     task_count = serializers.IntegerField(read_only=True, default=0)
     schedule_count = serializers.IntegerField(read_only=True, default=0)
     active_schedule_count = serializers.IntegerField(read_only=True, default=0)
+    artist_profile_detail = ArtistProfileSummarySerializer(source="artist_profile", read_only=True)
 
     class Meta:
         model = Project

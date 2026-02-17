@@ -44,7 +44,7 @@ PROVIDERS = {
     },
 }
 
-PURPOSES = ["persona_enrichment", "vision", "comment_generation", "content_generation"]
+PURPOSES = ["persona_enrichment", "vision", "comment_generation", "content_generation", "artist_research"]
 
 # Providers that use the OpenAI SDK with a custom base_url
 _OPENAI_COMPATIBLE = {"openai", "minimax", "kimi", "deepseek"}

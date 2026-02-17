@@ -143,6 +143,7 @@ def generate_personas(
     genre: str | None = None,
     archetype: str | None = None,
     target_artist: str | None = None,
+    artist_profile_data: dict | None = None,
 ):
     return _gen_personas(
         count, services=services,
@@ -150,4 +151,5 @@ def generate_personas(
         age_min=age_min, age_max=age_max,
         genre=genre, archetype=archetype,
         target_artist=target_artist,
+        artist_profile_data=artist_profile_data,
     )

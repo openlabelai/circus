@@ -1,8 +1,33 @@
+export interface ArtistProfile {
+  id: string;
+  artist_name: string;
+  genre: string;
+  platform: string;
+  social_handles: Record<string, string>;
+  profile_data: Record<string, any> | null;
+  raw_profile_text: string;
+  status: "pending" | "researching" | "completed" | "failed";
+  error_message: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ArtistProfileSummary {
+  id: string;
+  artist_name: string;
+  genre: string;
+  platform: string;
+  status: string;
+}
+
 export interface Project {
   id: string;
   name: string;
   description: string;
   color: string;
+  // Artist profile
+  artist_profile: string | null;
+  artist_profile_detail: ArtistProfileSummary | null;
   // Timeline
   start_date: string | null;
   end_date: string | null;

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import type { Project } from "@/lib/types";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { getArtistProfiles } from "@/lib/api";
+import type { ArtistProfile, Project } from "@/lib/types";
 
 const STATUS_OPTIONS = [
   { value: "planning", label: "Planning" },
@@ -64,6 +66,7 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
     target_platform: "",
     target_artist: "",
     genre: "",
+    artist_profile: null,
     target_persona_count: 0,
     max_devices: 0,
     notes: "",
@@ -71,6 +74,13 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
   });
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [artistProfiles, setArtistProfiles] = useState<ArtistProfile[]>([]);
+
+  useEffect(() => {
+    getArtistProfiles()
+      .then((d) => setArtistProfiles((d.results || []).filter((p) => p.status === "completed")))
+      .catch(console.error);
+  }, []);
 
   const set = (key: string, value: any) => setForm({ ...form, [key]: value });
 
@@ -133,6 +143,45 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
 
       {/* Campaign Target */}
       <Section title="Campaign Target">
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <Field label="Artist Profile">
+            <div className="flex items-center gap-2">
+              <select
+                className={selectClass}
+                value={form.artist_profile || ""}
+                onChange={(e) => {
+                  const profileId = e.target.value || null;
+                  set("artist_profile", profileId);
+                  if (profileId) {
+                    const profile = artistProfiles.find((p) => p.id === profileId);
+                    if (profile) {
+                      setForm((prev) => ({
+                        ...prev,
+                        artist_profile: profileId,
+                        target_artist: profile.artist_name || prev.target_artist,
+                        genre: profile.genre || prev.genre,
+                        target_platform: profile.platform || prev.target_platform,
+                      }));
+                    }
+                  }
+                }}
+              >
+                <option value="">None</option>
+                {artistProfiles.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.artist_name}{p.genre ? ` (${p.genre})` : ""}
+                  </option>
+                ))}
+              </select>
+              <Link
+                href="/artist-profiles"
+                className="text-xs text-blue-400 hover:text-blue-300 whitespace-nowrap"
+              >
+                Manage
+              </Link>
+            </div>
+          </Field>
+        </div>
         <div className="grid grid-cols-3 gap-4">
           <Field label="Platform">
             <select className={selectClass} value={form.target_platform || ""} onChange={(e) => set("target_platform", e.target.value)}>
