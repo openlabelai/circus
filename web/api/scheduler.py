@@ -318,6 +318,7 @@ async def _execute_run(run_id: str):
             duration=round(result.duration, 2),
             error=result.error,
             screenshot_count=len(result.screenshots),
+            extraction_data=result.extraction_data,
         )
 
         # Update run status

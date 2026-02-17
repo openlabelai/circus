@@ -160,7 +160,6 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
                         artist_profile: profileId,
                         target_artist: profile.artist_name || prev.target_artist,
                         genre: profile.genre || prev.genre,
-                        target_platform: profile.platform || prev.target_platform,
                       }));
                     }
                   }

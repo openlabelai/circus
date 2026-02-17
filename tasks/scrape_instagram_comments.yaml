@@ -1,0 +1,127 @@
+name: scrape_instagram_comments
+description: Open Instagram, navigate to an artist's profile, and extract comments from recent posts using vision
+target_package: com.instagram.android
+timeout: 600.0
+retry_count: 0
+actions:
+- action: app_start
+  package: com.instagram.android
+- action: random_sleep
+  min: 2
+  max: 4
+
+# Dismiss any popups
+- action: if
+  condition:
+    element_exists:
+      text: Not Now
+  then:
+  - action: tap
+    text: Not Now
+  - action: random_sleep
+    min: 1
+    max: 2
+
+# Tap search icon (magnifying glass)
+- action: tap
+  description: search_icon
+  resource_id: com.instagram.android:id/search_tab
+- action: random_sleep
+  min: 1
+  max: 2
+
+# Type artist handle in search
+- action: tap
+  description: search_box
+  resource_id: com.instagram.android:id/action_bar_search_edit_text
+- action: random_sleep
+  min: 0.5
+  max: 1
+- action: type_text
+  text: "{task.instagram_handle}"
+- action: random_sleep
+  min: 2
+  max: 3
+
+# Tap Accounts filter if visible
+- action: if
+  condition:
+    element_exists:
+      text: Accounts
+  then:
+  - action: tap
+    text: Accounts
+  - action: random_sleep
+    min: 1
+    max: 2
+
+# Tap first search result
+- action: tap
+  index: 0
+  resource_id: com.instagram.android:id/row_search_user_username
+- action: random_sleep
+  min: 2
+  max: 3
+
+# Loop through 3 posts
+- action: repeat
+  count: 3
+  actions:
+  - action: try
+    actions:
+    # Tap a post in the grid (first available)
+    - action: tap
+      description: post_thumbnail
+      resource_id: com.instagram.android:id/image_button
+      index: "{repeat_index}"
+    - action: random_sleep
+      min: 1
+      max: 2
+
+    # Tap "View all comments" or comments icon
+    - action: if
+      condition:
+        element_exists:
+          text_contains: View all
+      then:
+      - action: tap
+        text_contains: View all
+      else:
+      - action: tap
+        description: comments_icon
+        resource_id: com.instagram.android:id/row_feed_button_comment
+    - action: random_sleep
+      min: 2
+      max: 3
+
+    # Extract comments with vision (3 rounds of scroll + extract)
+    - action: repeat
+      count: 3
+      actions:
+      - action: vision
+        prompt: |
+          Extract all visible Instagram comment text. Return JSON: {"comments": ["comment1", "comment2", ...]}
+          Only the comment text — no usernames, timestamps, or like counts.
+        extract: true
+      - action: swipe
+        direction: up
+      - action: random_sleep
+        min: 1
+        max: 2
+
+    # Go back to profile
+    - action: back
+    - action: random_sleep
+      min: 0.5
+      max: 1
+    - action: back
+    - action: random_sleep
+      min: 1
+      max: 2
+
+    on_error:
+    - action: screenshot
+    - action: back
+    - action: random_sleep
+      min: 1
+      max: 2

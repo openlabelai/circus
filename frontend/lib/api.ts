@@ -64,6 +64,17 @@ export async function runArtistResearch(id: string): Promise<ArtistProfile> {
   return request(`/artist-profiles/${id}/research/`, { method: "POST" });
 }
 
+export async function fetchArtistComments(id: string, source: "youtube" | "instagram", deviceSerial?: string): Promise<ArtistProfile> {
+  return request(`/artist-profiles/${id}/fetch_comments/`, {
+    method: "POST",
+    body: JSON.stringify({ source, device_serial: deviceSerial || undefined }),
+  });
+}
+
+export async function enrichArtistAPIs(id: string): Promise<ArtistProfile> {
+  return request(`/artist-profiles/${id}/enrich/`, { method: "POST" });
+}
+
 // -- Projects --
 
 export async function getProjects(): Promise<{ results: Project[] }> {

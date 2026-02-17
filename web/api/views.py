@@ -55,12 +55,31 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
         profile.error_message = ""
         profile.save(update_fields=["status", "error_message"])
 
+        # Auto-enrich if api_data is empty
+        if not profile.api_data:
+            try:
+                from circus.research.apis import fetch_all_api_data
+                api_data = fetch_all_api_data(profile)
+                if api_data:
+                    profile.api_data = api_data
+                    profile.save(update_fields=["api_data"])
+            except Exception:
+                pass  # Non-fatal, continue with research
+
         from circus.persona.artist_research import research_artist
         result = research_artist(
             artist_name=profile.artist_name,
+            spotify_url=profile.spotify_url,
+            country=profile.country,
+            city=profile.city,
             genre=profile.genre,
-            platform=profile.platform,
-            social_handles=profile.social_handles,
+            instagram_handle=profile.instagram_handle,
+            youtube_url=profile.youtube_url,
+            tiktok_handle=profile.tiktok_handle,
+            twitter_handle=profile.twitter_handle,
+            description=profile.description,
+            scraped_comments=profile.scraped_comments or None,
+            api_data=profile.api_data or None,
         )
 
         if result["success"]:
@@ -73,6 +92,133 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
             profile.error_message = result["error"] or "Unknown error"
 
         profile.save()
+        return Response(ArtistProfileSerializer(profile).data)
+
+    @action(detail=True, methods=["post"])
+    def fetch_comments(self, request, pk=None):
+        profile = self.get_object()
+        source = request.data.get("source", "youtube")
+
+        if source == "youtube":
+            if not profile.youtube_url and not profile.artist_name:
+                return Response(
+                    {"error": "YouTube URL or artist name required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            profile.scraping_status = "scraping"
+            profile.save(update_fields=["scraping_status"])
+
+            try:
+                from circus.research.youtube import fetch_artist_comments
+                result = fetch_artist_comments(
+                    artist_name=profile.artist_name,
+                    youtube_url=profile.youtube_url,
+                    num_videos=10,
+                    comments_per_video=500,
+                )
+                # Append to existing comments
+                existing = profile.scraped_comments or []
+                existing.extend(result["comments"])
+                profile.scraped_comments = existing
+
+                # Store video metadata
+                api_data = profile.api_data or {}
+                api_data["youtube"] = {
+                    "channel_id": result.get("channel_id", ""),
+                    "videos_scraped": result["videos_scraped"],
+                    "total_comments": result["total_comments"],
+                    "videos": result.get("videos", []),
+                }
+                profile.api_data = api_data
+                profile.scraping_status = "done"
+                profile.last_scraped_at = timezone.now()
+                profile.save()
+            except Exception as e:
+                profile.scraping_status = "failed"
+                profile.save(update_fields=["scraping_status"])
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        elif source == "instagram":
+            if not profile.instagram_handle:
+                return Response(
+                    {"error": "Instagram handle required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            device_serial = request.data.get("device_serial")
+
+            # Find the scrape task
+            scrape_task = Task.objects.filter(name="scrape_instagram_comments").first()
+            if not scrape_task:
+                return Response(
+                    {"error": "scrape_instagram_comments task not found. Run task sync first."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            profile.scraping_status = "scraping"
+            profile.save(update_fields=["scraping_status"])
+
+            try:
+                from api.services import run_task_on_device
+                result_data = run_task_on_device(
+                    scrape_task,
+                    serial=device_serial,
+                    variables={"instagram_handle": profile.instagram_handle},
+                )
+
+                # Extract comments from extraction_data
+                extraction_data = result_data.get("extraction_data", [])
+                ig_comments = []
+                for item in extraction_data:
+                    if isinstance(item, dict) and "comments" in item:
+                        for comment_text in item["comments"]:
+                            if isinstance(comment_text, str) and comment_text.strip():
+                                ig_comments.append({
+                                    "text": comment_text.strip(),
+                                    "likes": 0,
+                                    "source": "instagram",
+                                })
+                    elif isinstance(item, str) and item.strip():
+                        ig_comments.append({
+                            "text": item.strip(),
+                            "likes": 0,
+                            "source": "instagram",
+                        })
+
+                existing = profile.scraped_comments or []
+                existing.extend(ig_comments)
+                profile.scraped_comments = existing
+                profile.scraping_status = "done"
+                profile.last_scraped_at = timezone.now()
+                profile.save()
+            except Exception as e:
+                profile.scraping_status = "failed"
+                profile.save(update_fields=["scraping_status"])
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response(
+                {"error": f"Unknown source: {source}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(ArtistProfileSerializer(profile).data)
+
+    @action(detail=True, methods=["post"])
+    def enrich(self, request, pk=None):
+        profile = self.get_object()
+
+        try:
+            from circus.research.apis import fetch_all_api_data
+            api_data = fetch_all_api_data(profile)
+            if api_data:
+                existing = profile.api_data or {}
+                existing.update(api_data)
+                profile.api_data = existing
+                profile.save(update_fields=["api_data"])
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response(ArtistProfileSerializer(profile).data)
 
 
@@ -328,6 +474,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             duration=result_data["duration"],
             error=result_data.get("error"),
             screenshot_count=result_data.get("screenshot_count", 0),
+            extraction_data=result_data.get("extraction_data", []),
         )
         return Response(result_data)
 

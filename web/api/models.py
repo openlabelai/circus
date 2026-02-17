@@ -16,13 +16,36 @@ class ArtistProfile(models.Model):
     ]
 
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
-    artist_name = models.CharField(max_length=200)
-    genre = models.CharField(max_length=100, blank=True, default="")
-    platform = models.CharField(max_length=50, blank=True, default="")
-    social_handles = models.JSONField(default=dict, blank=True)
 
+    # Identity (required)
+    artist_name = models.CharField(max_length=200)
+    spotify_url = models.URLField(max_length=500, blank=True, default="")
+    country = models.CharField(max_length=100, blank=True, default="")
+    city = models.CharField(max_length=100, blank=True, default="")
+    genre = models.CharField(max_length=100, blank=True, default="")
+
+    # Social profiles
+    instagram_handle = models.CharField(max_length=200, blank=True, default="")
+    youtube_url = models.URLField(max_length=500, blank=True, default="")
+    tiktok_handle = models.CharField(max_length=200, blank=True, default="")
+    twitter_handle = models.CharField(max_length=200, blank=True, default="")
+
+    # Additional context
+    description = models.TextField(blank=True, default="")
+
+    # Research output
     profile_data = models.JSONField(default=dict, blank=True)
     raw_profile_text = models.TextField(blank=True, default="")
+
+    # Scraped fan data
+    scraped_comments = models.JSONField(default=list, blank=True)
+    api_data = models.JSONField(default=dict, blank=True)
+    scraping_status = models.CharField(
+        max_length=20,
+        choices=[("idle", "Idle"), ("scraping", "Scraping"), ("done", "Done"), ("failed", "Failed")],
+        default="idle",
+    )
+    last_scraped_at = models.DateTimeField(null=True, blank=True)
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     error_message = models.TextField(blank=True, default="")

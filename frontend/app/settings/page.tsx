@@ -16,6 +16,7 @@ const PURPOSE_LABELS: Record<string, string> = {
   vision: "Vision & Recovery",
   comment_generation: "Comment Generation",
   content_generation: "Content Generation",
+  artist_research: "Artist Research",
 };
 
 export default function SettingsPage() {

@@ -1,11 +1,27 @@
 export interface ArtistProfile {
   id: string;
+  // Identity (required)
   artist_name: string;
+  spotify_url: string;
+  country: string;
+  city: string;
   genre: string;
-  platform: string;
-  social_handles: Record<string, string>;
+  // Social profiles
+  instagram_handle: string;
+  youtube_url: string;
+  tiktok_handle: string;
+  twitter_handle: string;
+  // Additional context
+  description: string;
+  // Research output
   profile_data: Record<string, any> | null;
   raw_profile_text: string;
+  // Scraped fan data
+  scraped_comments: Array<{text: string; likes: number; source: string; video_title?: string}>;
+  api_data: Record<string, any>;
+  scraping_status: "idle" | "scraping" | "done" | "failed";
+  last_scraped_at: string | null;
+
   status: "pending" | "researching" | "completed" | "failed";
   error_message: string;
   created_at: string;
@@ -16,7 +32,7 @@ export interface ArtistProfileSummary {
   id: string;
   artist_name: string;
   genre: string;
-  platform: string;
+  country: string;
   status: string;
 }
 

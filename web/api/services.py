@@ -66,11 +66,25 @@ def get_device(serial: str) -> dict | None:
     return _serialize_device(dev)
 
 
-def _db_task_to_circus(task) -> CircusTask:
-    """Convert a Django Task model instance to a circus Task dataclass."""
+def _db_task_to_circus(task, variables: dict | None = None) -> CircusTask:
+    """Convert a Django Task model instance to a circus Task dataclass.
+
+    If variables is provided, substitute {task.key} placeholders in action strings.
+    """
+    import copy
+    import json
+
+    actions = task.actions
+    if variables:
+        # Deep-copy and substitute variables in string values
+        actions = json.loads(
+            json.dumps(copy.deepcopy(actions))
+            .replace("{task.instagram_handle}", variables.get("instagram_handle", ""))
+        )
+
     return CircusTask(
         name=task.name,
-        actions=task.actions,
+        actions=actions,
         description=task.description,
         target_package=task.target_package,
         timeout=task.timeout,
@@ -86,11 +100,11 @@ def _ensure_devices():
         _run_async(pool.refresh())
 
 
-def run_task_on_device(task, serial: str | None = None) -> dict:
+def run_task_on_device(task, serial: str | None = None, variables: dict | None = None) -> dict:
     config = get_config()
     pool = get_pool()
     _ensure_devices()
-    circus_task = _db_task_to_circus(task)
+    circus_task = _db_task_to_circus(task, variables=variables)
     runner = TaskRunner(pool, config)
     result = _run_async(runner.run(circus_task, serial=serial), timeout=task.timeout + 30)
     return {
@@ -102,6 +116,7 @@ def run_task_on_device(task, serial: str | None = None) -> dict:
         "duration": round(result.duration, 2),
         "error": result.error,
         "screenshot_count": len(result.screenshots),
+        "extraction_data": result.extraction_data,
     }
 
 

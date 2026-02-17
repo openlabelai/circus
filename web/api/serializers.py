@@ -13,14 +13,35 @@ class ArtistProfileSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "profile_data", "raw_profile_text",
             "status", "error_message", "created_at", "updated_at",
+            "scraped_comments", "api_data", "scraping_status", "last_scraped_at",
         ]
+
+    def validate_artist_name(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Artist name is required.")
+        return value
+
+    def validate_spotify_url(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Spotify URL is required to uniquely identify the artist.")
+        return value
+
+    def validate_country(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Country is required to disambiguate the artist.")
+        return value
+
+    def validate_genre(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("Genre is required.")
+        return value
 
 
 class ArtistProfileSummarySerializer(serializers.ModelSerializer):
     """Lightweight serializer for embedding in project responses."""
     class Meta:
         model = ArtistProfile
-        fields = ["id", "artist_name", "genre", "platform", "status"]
+        fields = ["id", "artist_name", "genre", "country", "status"]
 
 
 class ProjectSerializer(serializers.ModelSerializer):
