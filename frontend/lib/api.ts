@@ -59,6 +59,12 @@ export async function deleteProject(id: string): Promise<void> {
   await fetch(`${API_URL}/projects/${id}/`, { method: "DELETE" });
 }
 
+import type { ProjectStats } from "./types";
+
+export async function getProjectStats(id: string): Promise<ProjectStats> {
+  return request(`/projects/${id}/stats/`);
+}
+
 // -- Personas --
 
 export async function getPersonas(projectId?: string): Promise<{ results: PersonaSummary[] }> {

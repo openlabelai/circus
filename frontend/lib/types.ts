@@ -3,11 +3,44 @@ export interface Project {
   name: string;
   description: string;
   color: string;
+  // Timeline
+  start_date: string | null;
+  end_date: string | null;
+  // Campaign targeting
+  target_platform: string;
+  target_artist: string;
+  genre: string;
+  // Scale
+  target_persona_count: number;
+  max_devices: number;
+  // Status
+  status: "planning" | "warming" | "active" | "paused" | "completed";
+  // Notes
+  notes: string;
+  // Computed counts (from annotations)
   persona_count: number;
   task_count: number;
   schedule_count: number;
+  active_schedule_count: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProjectStats {
+  persona_count: number;
+  task_count: number;
+  schedules_active: number;
+  schedules_paused: number;
+  devices_in_use: number;
+  results_today: {
+    total: number;
+    successful: number;
+    failed: number;
+  };
+  queue: {
+    queued: number;
+    running: number;
+  };
 }
 
 export interface ServiceCredential {

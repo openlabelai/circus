@@ -10,6 +10,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     persona_count = serializers.IntegerField(read_only=True, default=0)
     task_count = serializers.IntegerField(read_only=True, default=0)
     schedule_count = serializers.IntegerField(read_only=True, default=0)
+    active_schedule_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = Project

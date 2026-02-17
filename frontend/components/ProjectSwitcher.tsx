@@ -65,23 +65,38 @@ export default function ProjectSwitcher() {
       {open && (
         <div className="absolute left-0 right-0 top-full mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
           {projects.map((p) => (
-            <button
+            <div
               key={p.id}
-              onClick={() => {
-                setActiveProject(p);
-                setOpen(false);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-700 transition-colors text-left ${
+              className={`flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-700 transition-colors ${
                 p.id === activeProject?.id ? "bg-gray-700/50" : ""
               }`}
             >
-              <span
-                className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: p.color || "#6366f1" }}
-              />
-              <span className="truncate flex-1">{p.name}</span>
-              <span className="text-xs text-gray-500">{p.persona_count}p</span>
-            </button>
+              <button
+                onClick={() => {
+                  setActiveProject(p);
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 flex-1 min-w-0 text-left"
+              >
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: p.color || "#6366f1" }}
+                />
+                <span className="truncate flex-1">{p.name}</span>
+                <span className="text-xs text-gray-500">{p.persona_count}p</span>
+              </button>
+              <Link
+                href={`/projects/${p.id}`}
+                onClick={() => setOpen(false)}
+                className="text-gray-500 hover:text-gray-300 flex-shrink-0"
+                title="Project settings"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </Link>
+            </div>
           ))}
 
           <div className="border-t border-gray-700">

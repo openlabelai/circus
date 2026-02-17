@@ -8,6 +8,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
+from django.db import models
 from django.db.models import Count
 
 from api.models import (
@@ -43,7 +44,46 @@ class ProjectViewSet(viewsets.ModelViewSet):
             persona_count=Count("personas", distinct=True),
             task_count=Count("tasks", distinct=True),
             schedule_count=Count("schedules", distinct=True),
+            active_schedule_count=Count(
+                "schedules",
+                filter=models.Q(schedules__status="active"),
+                distinct=True,
+            ),
         ).all()
+
+    @action(detail=True, methods=["get"])
+    def stats(self, request, pk=None):
+        project = self.get_object()
+        today = date.today()
+
+        personas = Persona.objects.filter(project=project)
+        today_results = TaskResult.objects.filter(project=project, timestamp__date=today)
+        today_total = today_results.count()
+        today_success = today_results.filter(success=True).count()
+
+        devices_in_use = (
+            personas.exclude(assigned_device="")
+            .values("assigned_device")
+            .distinct()
+            .count()
+        )
+
+        return Response({
+            "persona_count": personas.count(),
+            "task_count": Task.objects.filter(project=project).count(),
+            "schedules_active": ScheduledTask.objects.filter(project=project, status="active").count(),
+            "schedules_paused": ScheduledTask.objects.filter(project=project, status="paused").count(),
+            "devices_in_use": devices_in_use,
+            "results_today": {
+                "total": today_total,
+                "successful": today_success,
+                "failed": today_total - today_success,
+            },
+            "queue": {
+                "queued": QueuedRun.objects.filter(project=project, status="queued").count(),
+                "running": QueuedRun.objects.filter(project=project, status="running").count(),
+            },
+        })
 
 
 class PersonaViewSet(viewsets.ModelViewSet):

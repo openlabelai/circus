@@ -12,11 +12,17 @@ export default function PersonasPage() {
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
   const [genCount, setGenCount] = useState(1);
   const [genServices, setGenServices] = useState("instagram,tiktok");
-  const [genGenre, setGenGenre] = useState("");
+  const [genGenre, setGenGenre] = useState(activeProject?.genre || "");
   const [genArchetype, setGenArchetype] = useState("");
-  const [genTargetArtist, setGenTargetArtist] = useState("");
+  const [genTargetArtist, setGenTargetArtist] = useState(activeProject?.target_artist || "");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  // Pre-fill from active project defaults
+  useEffect(() => {
+    if (activeProject?.genre) setGenGenre(activeProject.genre);
+    if (activeProject?.target_artist) setGenTargetArtist(activeProject.target_artist);
+  }, [activeProject?.id]);
 
   const load = () => {
     getPersonas(activeProject?.id).then((d) => setPersonas(d.results || [])).catch(console.error);

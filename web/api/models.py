@@ -8,10 +8,38 @@ def _short_uuid():
 
 
 class Project(models.Model):
+    STATUS_CHOICES = [
+        ("planning", "Planning"),
+        ("warming", "Warming"),
+        ("active", "Active"),
+        ("paused", "Paused"),
+        ("completed", "Completed"),
+    ]
+
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")
     color = models.CharField(max_length=7, blank=True, default="#6366f1")
+
+    # Timeline
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+
+    # Campaign targeting
+    target_platform = models.CharField(max_length=50, blank=True, default="")
+    target_artist = models.CharField(max_length=200, blank=True, default="")
+    genre = models.CharField(max_length=100, blank=True, default="")
+
+    # Scale
+    target_persona_count = models.IntegerField(default=0)
+    max_devices = models.IntegerField(default=0)
+
+    # Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="planning")
+
+    # Notes
+    notes = models.TextField(blank=True, default="")
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
