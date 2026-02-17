@@ -12,6 +12,7 @@ export default function PersonasPage() {
   const [genServices, setGenServices] = useState("instagram,tiktok");
   const [genGenre, setGenGenre] = useState("");
   const [genArchetype, setGenArchetype] = useState("");
+  const [genTargetArtist, setGenTargetArtist] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -25,7 +26,7 @@ export default function PersonasPage() {
     setLoading(true);
     try {
       const svcs = genServices.split(",").map((s) => s.trim()).filter(Boolean);
-      await generatePersonas(genCount, svcs.length ? svcs : undefined, genGenre || undefined, genArchetype || undefined);
+      await generatePersonas(genCount, svcs.length ? svcs : undefined, genGenre || undefined, genArchetype || undefined, genTargetArtist || undefined);
       load();
     } finally {
       setLoading(false);
@@ -98,6 +99,15 @@ export default function PersonasPage() {
             <option value="content_creator_fan">Content Creator Fan</option>
             <option value="genre_head">Genre Head</option>
           </select>
+        </div>
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Target Artist</label>
+          <input
+            value={genTargetArtist}
+            onChange={(e) => setGenTargetArtist(e.target.value)}
+            className="w-48 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-sm"
+            placeholder="e.g. Drake, SZA"
+          />
         </div>
         <button
           onClick={handleGenerate}

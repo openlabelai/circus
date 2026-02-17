@@ -9,13 +9,10 @@ from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
 from api.models import (
-    HarvestJob, HarvestedProfile, LLMConfig, Persona, QueuedRun,
+    LLMConfig, Persona, QueuedRun,
     ScheduledTask, ServiceCredential, Task, TaskResult,
 )
 from api.serializers import (
-    HarvestJobSerializer,
-    HarvestJobStartSerializer,
-    HarvestedProfileSerializer,
     LLMConfigSerializer,
     PersonaListSerializer,
     PersonaSerializer,
@@ -55,6 +52,7 @@ class PersonaViewSet(viewsets.ModelViewSet):
         age_max = request.data.get("age_max", None)
         genre = request.data.get("genre", None)
         archetype = request.data.get("archetype", None)
+        target_artist = request.data.get("target_artist", None)
 
         from api.services import generate_personas
         circus_personas = generate_personas(
@@ -62,6 +60,7 @@ class PersonaViewSet(viewsets.ModelViewSet):
             niche=niche, tone=tone,
             age_min=age_min, age_max=age_max,
             genre=genre, archetype=archetype,
+            target_artist=target_artist,
         )
 
         created = []
@@ -94,6 +93,7 @@ class PersonaViewSet(viewsets.ModelViewSet):
                 content_behavior=cp.content_behavior,
                 profile_aesthetic=cp.profile_aesthetic,
                 artist_knowledge_depth=cp.artist_knowledge_depth,
+                target_artist=cp.target_artist,
                 engagement_style=cp.behavior.engagement_style,
                 session_duration_min=cp.behavior.session_duration_min,
                 session_duration_max=cp.behavior.session_duration_max,
@@ -490,98 +490,6 @@ def provider_key_delete(request, provider):
 
     ProviderAPIKey.objects.filter(provider=provider).delete()
     return Response({"provider": provider, "status": "deleted"})
-
-
-# -- Harvest endpoints --
-
-
-class HarvestJobViewSet(viewsets.ModelViewSet):
-    queryset = HarvestJob.objects.select_related("task").all()
-    serializer_class = HarvestJobSerializer
-    http_method_names = ["get", "post", "head", "options", "delete"]
-
-    def get_queryset(self):
-        qs = super().get_queryset()
-        artist = self.request.query_params.get("artist")
-        job_status = self.request.query_params.get("status")
-        if artist:
-            qs = qs.filter(artist_name__icontains=artist)
-        if job_status:
-            qs = qs.filter(status=job_status)
-        return qs
-
-    @action(detail=False, methods=["post"])
-    def start(self, request):
-        serializer = HarvestJobStartSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        # Find the matching harvest task
-        harvest_type = data["harvest_type"]
-        task_name = f"harvest_instagram_{harvest_type}s"
-        try:
-            task = Task.objects.get(name=task_name)
-        except Task.DoesNotExist:
-            return Response(
-                {"error": f"Harvest task '{task_name}' not found. Run task sync first."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        job = HarvestJob.objects.create(
-            platform=data["platform"],
-            artist_name=data["artist_name"],
-            harvest_type=harvest_type,
-            target_count=data.get("target_count", 50),
-            priority=data.get("priority", 0),
-            geographic_area=data.get("geographic_area", ""),
-            task=task,
-            device_serial=data.get("device_serial", ""),
-        )
-
-        # Run in background thread
-        import threading
-        from api.services import run_harvest_task
-        thread = threading.Thread(target=run_harvest_task, args=(job.id,), daemon=True)
-        thread.start()
-
-        return Response(
-            HarvestJobSerializer(job).data,
-            status=status.HTTP_202_ACCEPTED,
-        )
-
-
-class HarvestedProfileViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = HarvestedProfile.objects.all()
-    serializer_class = HarvestedProfileSerializer
-
-    def get_queryset(self):
-        qs = super().get_queryset().exclude(status="discarded")
-        artist = self.request.query_params.get("artist")
-        platform = self.request.query_params.get("platform")
-        profile_status = self.request.query_params.get("status")
-        source_type = self.request.query_params.get("source_type")
-        if artist:
-            qs = qs.filter(source_artist__icontains=artist)
-        if platform:
-            qs = qs.filter(platform=platform)
-        if profile_status:
-            qs = qs.filter(status=profile_status)
-        if source_type:
-            qs = qs.filter(source_type=source_type)
-        return qs
-
-    @action(detail=True, methods=["post"])
-    def discard(self, request, pk=None):
-        profile = self.get_object()
-        profile.delete()
-        return Response({"status": "deleted"})
-
-    @action(detail=True, methods=["post"])
-    def mark_used(self, request, pk=None):
-        profile = self.get_object()
-        profile.status = "used"
-        profile.save(update_fields=["status"])
-        return Response({"status": "used"})
 
 
 # -- Warming endpoints --

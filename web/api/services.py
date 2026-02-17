@@ -133,91 +133,6 @@ def run_task_on_all(task, device_filter: list[str] | None = None) -> dict:
     }
 
 
-def run_harvest_task(harvest_job_id: str) -> None:
-    """Run a harvest task and process extraction results into HarvestedProfile records.
-
-    Called in a background thread from the HarvestJobViewSet.start action.
-    """
-    import django
-    django.setup()
-
-    from django.utils import timezone
-    from api.models import HarvestJob, HarvestedProfile
-
-    try:
-        job = HarvestJob.objects.get(id=harvest_job_id)
-    except HarvestJob.DoesNotExist:
-        return
-
-    job.status = "running"
-    job.started_at = timezone.now()
-    job.save(update_fields=["status", "started_at"])
-
-    try:
-        config = get_config()
-        pool = get_pool()
-        _ensure_devices()
-
-        circus_task = _db_task_to_circus(job.task)
-        circus_task.variables = {"artist_name": job.artist_name}
-
-        runner = TaskRunner(pool, config)
-        result = _run_async(
-            runner.run(circus_task, serial=job.device_serial or None),
-            timeout=circus_task.timeout + 30,
-        )
-
-        if not result.success:
-            job.status = "failed"
-            job.error = result.error or "Task execution failed"
-            job.completed_at = timezone.now()
-            job.save(update_fields=["status", "error", "completed_at"])
-            return
-
-        # Process extraction_data into HarvestedProfile records
-        profiles_created = 0
-        for entry in result.extraction_data:
-            # Each entry may be a single profile dict or contain a "profiles" list
-            profile_list = entry.get("profiles", [entry]) if isinstance(entry, dict) else [entry]
-            for profile_data in profile_list:
-                if not isinstance(profile_data, dict):
-                    continue
-                HarvestedProfile.objects.create(
-                    platform=job.platform,
-                    source_type=job.harvest_type,
-                    source_artist=job.artist_name,
-                    profile_data=profile_data,
-                    harvest_job=job,
-                    confidence_score=profile_data.pop("confidence", 0.8),
-                )
-                profiles_created += 1
-
-        job.status = "completed"
-        job.profiles_harvested = profiles_created
-        job.completed_at = timezone.now()
-        job.save(update_fields=["status", "profiles_harvested", "completed_at"])
-
-        # Also save TaskResult to DB
-        from api.models import TaskResult as DBTaskResult
-        DBTaskResult.objects.create(
-            task_id=result.task_id,
-            task_name=job.task.name,
-            device_serial=result.device_serial,
-            success=result.success,
-            actions_completed=result.actions_completed,
-            actions_total=result.actions_total,
-            duration=result.duration,
-            screenshot_count=len(result.screenshots),
-            extraction_data=result.extraction_data,
-        )
-
-    except Exception as e:
-        job.status = "failed"
-        job.error = str(e)
-        job.completed_at = timezone.now()
-        job.save(update_fields=["status", "error", "completed_at"])
-
-
 def generate_personas(
     count: int,
     services: list[str] | None = None,
@@ -227,10 +142,12 @@ def generate_personas(
     age_max: int | None = None,
     genre: str | None = None,
     archetype: str | None = None,
+    target_artist: str | None = None,
 ):
     return _gen_personas(
         count, services=services,
         niche=niche, tone=tone,
         age_min=age_min, age_max=age_max,
         genre=genre, archetype=archetype,
+        target_artist=target_artist,
     )

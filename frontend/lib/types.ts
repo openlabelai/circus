@@ -141,38 +141,6 @@ export interface WarmingStatus {
   }[];
 }
 
-export interface HarvestJob {
-  id: string;
-  task_name: string;
-  platform: string;
-  artist_name: string;
-  harvest_type: string;
-  target_count: number;
-  priority: number;
-  geographic_area: string;
-  status: "queued" | "running" | "completed" | "failed";
-  profiles_harvested: number;
-  device_serial: string;
-  error: string;
-  created_at: string;
-  started_at: string | null;
-  completed_at: string | null;
-  task: string;
-}
-
-export interface HarvestedProfile {
-  id: string;
-  platform: string;
-  source_type: string;
-  source_artist: string;
-  profile_data: Record<string, any>;
-  status: "raw" | "validated" | "used" | "discarded";
-  confidence_score: number;
-  harvest_job: string | null;
-  screenshot_path: string;
-  harvested_at: string;
-}
-
 export interface LLMConfig {
   id: number;
   purpose: string;

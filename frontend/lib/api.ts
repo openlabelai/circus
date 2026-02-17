@@ -56,10 +56,17 @@ export async function generatePersonas(
   services?: string[],
   genre?: string,
   archetype?: string,
+  targetArtist?: string,
 ): Promise<PersonaSummary[]> {
   return request("/personas/generate/", {
     method: "POST",
-    body: JSON.stringify({ count, services, genre: genre || undefined, archetype: archetype || undefined }),
+    body: JSON.stringify({
+      count,
+      services,
+      genre: genre || undefined,
+      archetype: archetype || undefined,
+      target_artist: targetArtist || undefined,
+    }),
   });
 }
 
@@ -206,63 +213,6 @@ export async function deactivateWarming(): Promise<{ status: string; schedules_p
 
 export async function getWarmingStatus(): Promise<WarmingStatus> {
   return request("/warming/status/");
-}
-
-// -- Harvest --
-
-import type { HarvestJob, HarvestedProfile } from "./types";
-
-export async function getHarvestJobs(params?: {
-  artist?: string;
-  status?: string;
-}): Promise<{ results: HarvestJob[] }> {
-  const query = params
-    ? "?" + new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v) as [string, string][]
-      ).toString()
-    : "";
-  return request(`/harvest-jobs/${query}`);
-}
-
-export async function deleteHarvestJob(id: string): Promise<void> {
-  await fetch(`${API_URL}/harvest-jobs/${id}/`, { method: "DELETE" });
-}
-
-export async function startHarvestJob(data: {
-  platform: string;
-  artist_name: string;
-  harvest_type: string;
-  target_count?: number;
-  priority?: number;
-  geographic_area?: string;
-  device_serial?: string;
-}): Promise<HarvestJob> {
-  return request("/harvest-jobs/start/", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-}
-
-export async function getHarvestedProfiles(params?: {
-  artist?: string;
-  status?: string;
-  platform?: string;
-  source_type?: string;
-}): Promise<{ results: HarvestedProfile[] }> {
-  const query = params
-    ? "?" + new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v) as [string, string][]
-      ).toString()
-    : "";
-  return request(`/harvest-profiles/${query}`);
-}
-
-export async function discardProfile(id: string): Promise<{ status: string }> {
-  return request(`/harvest-profiles/${id}/discard/`, { method: "POST" });
-}
-
-export async function markProfileUsed(id: string): Promise<{ status: string }> {
-  return request(`/harvest-profiles/${id}/mark_used/`, { method: "POST" });
 }
 
 // -- LLM Config --
