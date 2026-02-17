@@ -3,19 +3,21 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getTasks, syncTasks, runTask, runTaskAll, deleteTask } from "@/lib/api";
+import { useProject } from "@/lib/project-context";
 import type { Task } from "@/lib/types";
 
 export default function TasksPage() {
+  const { activeProject } = useProject();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   const load = () => {
-    getTasks().then((d) => setTasks(d.results || [])).catch(console.error);
+    getTasks(activeProject?.id).then((d) => setTasks(d.results || [])).catch(console.error);
   };
 
-  useEffect(load, []);
+  useEffect(load, [activeProject?.id]);
 
   const handleSync = async () => {
     setSyncing(true);

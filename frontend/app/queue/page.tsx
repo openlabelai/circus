@@ -9,6 +9,7 @@ import {
   getPersonas,
   getDevices,
 } from "@/lib/api";
+import { useProject } from "@/lib/project-context";
 import type { QueuedRun, Task, PersonaSummary, Device } from "@/lib/types";
 
 const statusColors: Record<string, string> = {
@@ -23,6 +24,7 @@ const statusColors: Record<string, string> = {
 const STATUS_FILTERS = ["", "queued", "running", "completed", "failed", "cancelled"];
 
 export default function QueuePage() {
+  const { activeProject } = useProject();
   const [runs, setRuns] = useState<QueuedRun[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [showEnqueue, setShowEnqueue] = useState(false);
@@ -41,10 +43,10 @@ export default function QueuePage() {
 
   const load = useCallback(() => {
     const params = statusFilter ? { status: statusFilter } : undefined;
-    getQueue(params)
+    getQueue(params, activeProject?.id)
       .then((d) => setRuns(d.results || []))
       .catch(console.error);
-  }, [statusFilter]);
+  }, [statusFilter, activeProject?.id]);
 
   useEffect(load, [load]);
 
@@ -57,15 +59,15 @@ export default function QueuePage() {
   // Load dropdown data when enqueue form opens
   useEffect(() => {
     if (showEnqueue) {
-      getTasks()
+      getTasks(activeProject?.id)
         .then((d) => setTasks(d.results || []))
         .catch(console.error);
-      getPersonas()
+      getPersonas(activeProject?.id)
         .then((d) => setPersonas(d.results || []))
         .catch(console.error);
       getDevices().then(setDevices).catch(console.error);
     }
-  }, [showEnqueue]);
+  }, [showEnqueue, activeProject?.id]);
 
   const handleCancel = async (id: string) => {
     setCancelling(id);

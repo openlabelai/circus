@@ -7,8 +7,24 @@ def _short_uuid():
     return uuid.uuid4().hex[:8]
 
 
+class Project(models.Model):
+    id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
+    color = models.CharField(max_length=7, blank=True, default="#6366f1")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.name
+
+
 class Persona(models.Model):
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="personas", null=True, blank=True)
     name = models.CharField(max_length=200, blank=True, default="")
     age = models.IntegerField(default=25)
     gender = models.CharField(max_length=50, blank=True, default="")
@@ -80,6 +96,7 @@ class ServiceCredential(models.Model):
 
 class Task(models.Model):
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks", null=True, blank=True)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")
     target_package = models.CharField(max_length=300, blank=True, default="")
@@ -97,6 +114,7 @@ class Task(models.Model):
 
 
 class TaskResult(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.SET_NULL, related_name="results", null=True, blank=True)
     task_id = models.CharField(max_length=8)
     task_name = models.CharField(max_length=200, blank=True, default="")
     device_serial = models.CharField(max_length=200)
@@ -157,6 +175,7 @@ class ScheduledTask(models.Model):
     ]
 
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="schedules", null=True, blank=True)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="schedules")
     persona = models.ForeignKey(
         Persona,
@@ -200,6 +219,7 @@ class QueuedRun(models.Model):
     ]
 
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="queued_runs", null=True, blank=True)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="queued_runs")
     schedule = models.ForeignKey(
         ScheduledTask,

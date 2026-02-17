@@ -8,20 +8,42 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 
+from django.db.models import Count
+
 from api.models import (
-    LLMConfig, Persona, QueuedRun,
+    LLMConfig, Persona, Project, QueuedRun,
     ScheduledTask, ServiceCredential, Task, TaskResult,
 )
 from api.serializers import (
     LLMConfigSerializer,
     PersonaListSerializer,
     PersonaSerializer,
+    ProjectSerializer,
     QueuedRunCreateSerializer,
     QueuedRunSerializer,
     ScheduledTaskSerializer,
     TaskResultSerializer,
     TaskSerializer,
 )
+
+
+def _project_filter(request):
+    """Return a dict filter for project scoping from query params."""
+    project_id = request.query_params.get("project")
+    if project_id:
+        return {"project_id": project_id}
+    return {}
+
+
+class ProjectViewSet(viewsets.ModelViewSet):
+    serializer_class = ProjectSerializer
+
+    def get_queryset(self):
+        return Project.objects.annotate(
+            persona_count=Count("personas", distinct=True),
+            task_count=Count("tasks", distinct=True),
+            schedule_count=Count("schedules", distinct=True),
+        ).all()
 
 
 class PersonaViewSet(viewsets.ModelViewSet):
@@ -31,6 +53,10 @@ class PersonaViewSet(viewsets.ModelViewSet):
         if self.action == "list":
             return PersonaListSerializer
         return PersonaSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.filter(**_project_filter(self.request))
 
     def perform_create(self, serializer):
         instance = serializer.save()
@@ -53,6 +79,7 @@ class PersonaViewSet(viewsets.ModelViewSet):
         genre = request.data.get("genre", None)
         archetype = request.data.get("archetype", None)
         target_artist = request.data.get("target_artist", None)
+        project_id = request.data.get("project", None)
 
         from api.services import generate_personas
         circus_personas = generate_personas(
@@ -67,6 +94,7 @@ class PersonaViewSet(viewsets.ModelViewSet):
         for cp in circus_personas:
             persona = Persona.objects.create(
                 id=cp.id,
+                project_id=project_id,
                 name=cp.name,
                 age=cp.age,
                 gender=cp.gender,
@@ -146,6 +174,10 @@ class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.filter(**_project_filter(self.request))
+
     def perform_create(self, serializer):
         instance = serializer.save()
         from api.sync import export_task_to_yaml
@@ -176,6 +208,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         if background:
             run = QueuedRun.objects.create(
                 task=task,
+                project=task.project,
                 device_serial=device_serial or "",
                 max_retries=task.retry_count,
             )
@@ -191,6 +224,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         # Save to DB
         TaskResult.objects.create(
+            project=task.project,
             task_id=result_data["task_id"],
             task_name=task.name,
             device_serial=result_data["device_serial"],
@@ -215,6 +249,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Save each result to DB
         for r in summary.get("results", []):
             TaskResult.objects.create(
+                project=task.project,
                 task_id=r["task_id"],
                 task_name=task.name,
                 device_serial=r["device_serial"],
@@ -232,7 +267,7 @@ class TaskResultViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TaskResultSerializer
 
     def get_queryset(self):
-        qs = TaskResult.objects.all()
+        qs = TaskResult.objects.filter(**_project_filter(self.request))
         date_str = self.request.query_params.get("date")
         task_id = self.request.query_params.get("task_id")
         if date_str:
@@ -280,31 +315,32 @@ def status_overview(request):
         s = d["status"]
         device_counts[s] = device_counts.get(s, 0) + 1
 
+    pf = _project_filter(request)
     today = date.today()
-    today_results = TaskResult.objects.filter(timestamp__date=today)
+    today_results = TaskResult.objects.filter(timestamp__date=today, **pf)
     today_total = today_results.count()
     today_success = today_results.filter(success=True).count()
 
     return Response({
-        "personas": Persona.objects.count(),
+        "personas": Persona.objects.filter(**pf).count(),
         "devices": {
             "total": len(devices),
             "by_status": device_counts,
         },
-        "tasks": Task.objects.count(),
+        "tasks": Task.objects.filter(**pf).count(),
         "results_today": {
             "total": today_total,
             "successful": today_success,
             "failed": today_total - today_success,
         },
-        "schedules": ScheduledTask.objects.filter(status="active").count(),
+        "schedules": ScheduledTask.objects.filter(status="active", **pf).count(),
         "queue": {
-            "queued": QueuedRun.objects.filter(status="queued").count(),
-            "running": QueuedRun.objects.filter(status="running").count(),
+            "queued": QueuedRun.objects.filter(status="queued", **pf).count(),
+            "running": QueuedRun.objects.filter(status="running", **pf).count(),
         },
         "warming": {
-            "active": ScheduledTask.objects.filter(is_warming=True, status="active").exists(),
-            "active_schedules": ScheduledTask.objects.filter(is_warming=True, status="active").count(),
+            "active": ScheduledTask.objects.filter(is_warming=True, status="active", **pf).exists(),
+            "active_schedules": ScheduledTask.objects.filter(is_warming=True, status="active", **pf).count(),
         },
     })
 
@@ -317,7 +353,7 @@ class ScheduledTaskViewSet(viewsets.ModelViewSet):
     serializer_class = ScheduledTaskSerializer
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().filter(**_project_filter(self.request))
         is_warming = self.request.query_params.get("is_warming")
         if is_warming is not None:
             qs = qs.filter(is_warming=is_warming.lower() in ("true", "1"))
@@ -371,7 +407,9 @@ class QueuedRunViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = QueuedRunSerializer
 
     def get_queryset(self):
-        qs = QueuedRun.objects.select_related("task", "persona", "schedule").all()
+        qs = QueuedRun.objects.select_related("task", "persona", "schedule").filter(
+            **_project_filter(self.request)
+        )
         run_status = self.request.query_params.get("status")
         task_id = self.request.query_params.get("task_id")
         schedule_id = self.request.query_params.get("schedule")
@@ -420,6 +458,7 @@ class QueuedRunViewSet(viewsets.ReadOnlyModelViewSet):
 
         run = QueuedRun.objects.create(
             task=task,
+            project=task.project,
             persona=persona,
             device_serial=data.get("device_serial", ""),
             priority=data.get("priority", 0),
@@ -543,6 +582,7 @@ def warming_activate(request):
             cron = _random_cron(persona.active_hours_start, persona.active_hours_end)
             schedule = ScheduledTask.objects.create(
                 task=task,
+                project=persona.project,
                 persona=persona,
                 device_serial=persona.assigned_device,
                 trigger_type="cron",

@@ -2,19 +2,21 @@
 
 import { useEffect, useState } from "react";
 import { getResults, syncResults } from "@/lib/api";
+import { useProject } from "@/lib/project-context";
 import type { TaskResultRecord } from "@/lib/types";
 
 export default function ResultsPage() {
+  const { activeProject } = useProject();
   const today = new Date().toISOString().split("T")[0];
   const [date, setDate] = useState(today);
   const [results, setResults] = useState<TaskResultRecord[]>([]);
   const [syncing, setSyncing] = useState(false);
 
   const load = () => {
-    getResults(date).then((d) => setResults(d.results || [])).catch(console.error);
+    getResults(date, activeProject?.id).then((d) => setResults(d.results || [])).catch(console.error);
   };
 
-  useEffect(load, [date]);
+  useEffect(load, [date, activeProject?.id]);
 
   const handleSync = async () => {
     setSyncing(true);

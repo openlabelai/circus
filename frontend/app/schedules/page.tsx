@@ -8,6 +8,7 @@ import {
   pauseSchedule,
   resumeSchedule,
 } from "@/lib/api";
+import { useProject } from "@/lib/project-context";
 import type { ScheduledTask } from "@/lib/types";
 
 const statusColors: Record<string, string> = {
@@ -31,16 +32,17 @@ function formatTrigger(s: ScheduledTask) {
 }
 
 export default function SchedulesPage() {
+  const { activeProject } = useProject();
   const [schedules, setSchedules] = useState<ScheduledTask[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
 
   const load = () => {
-    getSchedules()
+    getSchedules(activeProject?.id)
       .then((d) => setSchedules(d.results || []))
       .catch(console.error);
   };
 
-  useEffect(load, []);
+  useEffect(load, [activeProject?.id]);
 
   const handleDelete = async (id: string) => {
     if (!confirm(`Delete schedule ${id}?`)) return;

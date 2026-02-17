@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getStatus, activateWarming, deactivateWarming } from "@/lib/api";
+import { useProject } from "@/lib/project-context";
 import type { StatusOverview } from "@/lib/types";
 
 function StatCard({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
@@ -15,14 +16,15 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
 }
 
 export default function DashboardPage() {
+  const { activeProject } = useProject();
   const [status, setStatus] = useState<StatusOverview | null>(null);
   const [warmingLoading, setWarmingLoading] = useState(false);
 
-  const refreshStatus = () => getStatus().then(setStatus).catch(console.error);
+  const refreshStatus = () => getStatus(activeProject?.id).then(setStatus).catch(console.error);
 
   useEffect(() => {
     refreshStatus();
-  }, []);
+  }, [activeProject?.id]);
 
   const handleWarming = async () => {
     setWarmingLoading(true);

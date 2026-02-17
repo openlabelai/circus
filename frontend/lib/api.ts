@@ -12,11 +12,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-// -- Personas --
+/** Append ?project=<id> (and any extra params) to a path. */
+function withProject(path: string, projectId?: string, extra?: Record<string, string>): string {
+  const params = new URLSearchParams();
+  if (projectId) params.set("project", projectId);
+  if (extra) {
+    for (const [k, v] of Object.entries(extra)) {
+      if (v) params.set(k, v);
+    }
+  }
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
+// -- Projects --
 
 import type {
   Persona,
   PersonaSummary,
+  Project,
   Device,
   Task,
   TaskResultRecord,
@@ -25,8 +39,30 @@ import type {
   QueuedRun,
 } from "./types";
 
-export async function getPersonas(): Promise<{ results: PersonaSummary[] }> {
-  return request("/personas/");
+export async function getProjects(): Promise<{ results: Project[] }> {
+  return request("/projects/");
+}
+
+export async function getProject(id: string): Promise<Project> {
+  return request(`/projects/${id}/`);
+}
+
+export async function createProject(data: Partial<Project>): Promise<Project> {
+  return request("/projects/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function updateProject(id: string, data: Partial<Project>): Promise<Project> {
+  return request(`/projects/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  await fetch(`${API_URL}/projects/${id}/`, { method: "DELETE" });
+}
+
+// -- Personas --
+
+export async function getPersonas(projectId?: string): Promise<{ results: PersonaSummary[] }> {
+  return request(withProject("/personas/", projectId));
 }
 
 export async function getPersona(id: string): Promise<Persona> {
@@ -57,6 +93,7 @@ export async function generatePersonas(
   genre?: string,
   archetype?: string,
   targetArtist?: string,
+  projectId?: string,
 ): Promise<PersonaSummary[]> {
   return request("/personas/generate/", {
     method: "POST",
@@ -66,6 +103,7 @@ export async function generatePersonas(
       genre: genre || undefined,
       archetype: archetype || undefined,
       target_artist: targetArtist || undefined,
+      project: projectId || undefined,
     }),
   });
 }
@@ -93,8 +131,8 @@ export async function refreshDevices(): Promise<Device[]> {
 
 // -- Tasks --
 
-export async function getTasks(): Promise<{ results: Task[] }> {
-  return request("/tasks/");
+export async function getTasks(projectId?: string): Promise<{ results: Task[] }> {
+  return request(withProject("/tasks/", projectId));
 }
 
 export async function getTask(id: string): Promise<Task> {
@@ -133,9 +171,8 @@ export async function runTaskAll(id: string, deviceFilter?: string[]): Promise<a
 
 // -- Results --
 
-export async function getResults(date?: string): Promise<{ results: TaskResultRecord[] }> {
-  const params = date ? `?date=${date}` : "";
-  return request(`/results/${params}`);
+export async function getResults(date?: string, projectId?: string): Promise<{ results: TaskResultRecord[] }> {
+  return request(withProject("/results/", projectId, date ? { date } : undefined));
 }
 
 export async function syncResults(): Promise<{ imported: number }> {
@@ -144,8 +181,8 @@ export async function syncResults(): Promise<{ imported: number }> {
 
 // -- Schedules --
 
-export async function getSchedules(): Promise<{ results: ScheduledTask[] }> {
-  return request("/schedules/");
+export async function getSchedules(projectId?: string): Promise<{ results: ScheduledTask[] }> {
+  return request(withProject("/schedules/", projectId));
 }
 
 export async function getSchedule(id: string): Promise<ScheduledTask> {
@@ -178,13 +215,14 @@ export async function getQueue(params?: {
   status?: string;
   task_id?: string;
   schedule?: string;
-}): Promise<{ results: QueuedRun[] }> {
-  const query = params
-    ? "?" + new URLSearchParams(
-        Object.entries(params).filter(([, v]) => v) as [string, string][]
-      ).toString()
-    : "";
-  return request(`/queue/${query}`);
+}, projectId?: string): Promise<{ results: QueuedRun[] }> {
+  const extra: Record<string, string> = {};
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      if (v) extra[k] = v;
+    }
+  }
+  return request(withProject("/queue/", projectId, extra));
 }
 
 export async function enqueueTask(data: {
@@ -254,6 +292,6 @@ export async function deleteProviderKey(provider: string): Promise<any> {
 
 // -- Status --
 
-export async function getStatus(): Promise<StatusOverview> {
-  return request("/status/");
+export async function getStatus(projectId?: string): Promise<StatusOverview> {
+  return request(withProject("/status/", projectId));
 }

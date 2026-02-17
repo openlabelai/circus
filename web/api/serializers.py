@@ -1,9 +1,19 @@
 from rest_framework import serializers
 
 from api.models import (
-    LLMConfig, Persona, QueuedRun,
+    LLMConfig, Persona, Project, QueuedRun,
     ScheduledTask, ServiceCredential, Task, TaskResult,
 )
+
+
+class ProjectSerializer(serializers.ModelSerializer):
+    persona_count = serializers.IntegerField(read_only=True, default=0)
+    task_count = serializers.IntegerField(read_only=True, default=0)
+    schedule_count = serializers.IntegerField(read_only=True, default=0)
+
+    class Meta:
+        model = Project
+        fields = "__all__"
 
 
 class ServiceCredentialSerializer(serializers.ModelSerializer):

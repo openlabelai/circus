@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
+import { ProjectProvider } from "@/lib/project-context";
+import ProjectSwitcher from "@/components/ProjectSwitcher";
 
 export const metadata: Metadata = {
   title: "Circus",
@@ -22,19 +24,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="flex min-h-screen">
-        <aside className="w-56 bg-gray-900 border-r border-gray-800 p-4 flex flex-col gap-1">
-          <h1 className="text-xl font-bold mb-6 px-3">Circus</h1>
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </aside>
-        <main className="flex-1 p-8 overflow-auto">{children}</main>
+        <ProjectProvider>
+          <aside className="w-56 bg-gray-900 border-r border-gray-800 p-4 flex flex-col gap-1">
+            <h1 className="text-xl font-bold mb-4 px-3">Circus</h1>
+            <ProjectSwitcher />
+            <div className="border-b border-gray-800 my-2" />
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="px-3 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </aside>
+          <main className="flex-1 p-8 overflow-auto">{children}</main>
+        </ProjectProvider>
       </body>
     </html>
   );

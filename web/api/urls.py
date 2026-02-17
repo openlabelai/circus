@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from api import views
 
 router = DefaultRouter()
+router.register(r'projects', views.ProjectViewSet, basename='project')
 router.register(r'personas', views.PersonaViewSet)
 router.register(r'tasks', views.TaskViewSet)
 router.register(r'results', views.TaskResultViewSet, basename='taskresult')

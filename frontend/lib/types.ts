@@ -1,3 +1,15 @@
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  persona_count: number;
+  task_count: number;
+  schedule_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ServiceCredential {
   id?: number;
   service_name: string;

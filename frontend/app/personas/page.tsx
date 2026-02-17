@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getPersonas, generatePersonas, deletePersona } from "@/lib/api";
+import { useProject } from "@/lib/project-context";
 import type { PersonaSummary } from "@/lib/types";
 
 export default function PersonasPage() {
+  const { activeProject } = useProject();
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
   const [genCount, setGenCount] = useState(1);
   const [genServices, setGenServices] = useState("instagram,tiktok");
@@ -17,16 +19,16 @@ export default function PersonasPage() {
   const router = useRouter();
 
   const load = () => {
-    getPersonas().then((d) => setPersonas(d.results || [])).catch(console.error);
+    getPersonas(activeProject?.id).then((d) => setPersonas(d.results || [])).catch(console.error);
   };
 
-  useEffect(load, []);
+  useEffect(load, [activeProject?.id]);
 
   const handleGenerate = async () => {
     setLoading(true);
     try {
       const svcs = genServices.split(",").map((s) => s.trim()).filter(Boolean);
-      await generatePersonas(genCount, svcs.length ? svcs : undefined, genGenre || undefined, genArchetype || undefined, genTargetArtist || undefined);
+      await generatePersonas(genCount, svcs.length ? svcs : undefined, genGenre || undefined, genArchetype || undefined, genTargetArtist || undefined, activeProject?.id);
       load();
     } finally {
       setLoading(false);
