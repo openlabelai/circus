@@ -51,6 +51,52 @@ _ENGAGEMENT_STYLES = ["passive", "active", "moderate"]
 _POSTING_FREQUENCIES = ["hourly", "daily", "weekly", "rarely"]
 _SCROLL_SPEEDS = ["slow", "medium", "fast"]
 
+_VIBE_WORDS = [
+    "vibe", "soul", "moon", "luna", "nova", "echo", "wave", "drift",
+    "haze", "glow", "bloom", "aura", "daze", "muse", "tone", "beat",
+    "melody", "rhythm", "lyric", "sound",
+]
+
+_USERNAME_STYLES = ["dotted", "aesthetic", "underscore", "simple", "handle"]
+
+
+def _generate_username(first: str, last: str) -> str:
+    """Generate a realistic social media username using varied patterns."""
+    first_l = first.lower()
+    last_l = last.lower()
+    vibe = random.choice(_VIBE_WORDS)
+    num = random.randint(0, 99)
+    style = random.choice(_USERNAME_STYLES)
+
+    patterns = {
+        "dotted": [
+            f"{vibe}.with.{first_l}",
+            f"{first_l}.{vibe}",
+            f"{first_l}.{last_l}.{vibe}",
+        ],
+        "aesthetic": [
+            f"{first_l}x{vibe}",
+            f"{vibe}x{first_l}",
+            f"{first_l}x{last_l}",
+        ],
+        "underscore": [
+            f"{vibe}_{first_l}",
+            f"{first_l}_{vibe}_{num:02d}",
+            f"{vibe}_n_{first_l}",
+        ],
+        "simple": [
+            f"{first_l}{vibe}{num}",
+            f"{vibe}{first_l}{num:02d}",
+            f"{first_l}{num}{vibe}",
+        ],
+        "handle": [
+            f"its{first_l}{vibe}",
+            f"the{first_l}{vibe}",
+            f"just{first_l}{num:02d}",
+        ],
+    }
+    return random.choice(patterns[style])
+
 
 _GENRE_POOL = [
     "hip-hop", "indie-rock", "edm", "r&b", "latin", "k-pop", "pop", "country",
@@ -97,6 +143,7 @@ def generate_persona(
     age_max: int | None = None,
     genre: str | None = None,
     archetype: str | None = None,
+    target_artist: str | None = None,
 ) -> Persona:
     """Generate a single synthetic persona."""
     if fake is None:
@@ -106,9 +153,10 @@ def generate_persona(
 
     chosen_genre = genre or ""
     chosen_archetype = archetype or ""
+    chosen_target_artist = target_artist or ""
 
-    # If genre is set, default niche to "music"
-    if chosen_genre and not niche:
+    # If genre or target_artist is set, default niche to "music"
+    if (chosen_genre or chosen_target_artist) and not niche:
         chosen_niche = "music"
     else:
         chosen_niche = niche or random.choice(_NICHE_POOL)
@@ -126,13 +174,13 @@ def generate_persona(
         first = fake.first_name()
     last = fake.last_name()
     name = f"{first} {last}"
-    base_username = f"{first.lower()}{last.lower()}{random.randint(1, 999)}"
+    base_username = _generate_username(first, last)
 
     credentials: dict[str, ServiceCredentials] = {}
     for svc in services:
-        suffix = random.choice(["", str(random.randint(1, 99)), fake.lexify("???")])
+        # Each service gets a fresh username variation
         credentials[svc] = ServiceCredentials(
-            username=f"{base_username}{suffix}",
+            username=_generate_username(first, last),
             password=fake.password(length=14),
             email=fake.email(),
         )
@@ -165,6 +213,7 @@ def generate_persona(
         genre=chosen_genre,
         archetype=chosen_archetype,
         artist_knowledge_depth=arch_defaults.get("artist_knowledge_depth", ""),
+        target_artist=chosen_target_artist,
         behavior=BehavioralProfile(
             engagement_style=arch_defaults.get("engagement_style", random.choice(_ENGAGEMENT_STYLES)),
             session_duration_min=random.randint(3, 10),
@@ -179,7 +228,7 @@ def generate_persona(
 
     # Enrich with LLM (generates background_story, content_style, rewrites bio)
     from circus.persona.enrichment import enrich_persona
-    persona = enrich_persona(persona)
+    persona = enrich_persona(persona, target_artist=chosen_target_artist)
 
     return persona
 
@@ -193,6 +242,7 @@ def generate_personas(
     age_max: int | None = None,
     genre: str | None = None,
     archetype: str | None = None,
+    target_artist: str | None = None,
 ) -> list[Persona]:
     """Generate multiple personas with a shared Faker instance."""
     fake = Faker()
@@ -202,6 +252,7 @@ def generate_personas(
             niche=niche, tone=tone,
             age_min=age_min, age_max=age_max,
             genre=genre, archetype=archetype,
+            target_artist=target_artist,
         )
         for _ in range(count)
     ]

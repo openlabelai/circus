@@ -56,10 +56,17 @@ export async function generatePersonas(
   services?: string[],
   genre?: string,
   archetype?: string,
+  targetArtist?: string,
 ): Promise<PersonaSummary[]> {
   return request("/personas/generate/", {
     method: "POST",
-    body: JSON.stringify({ count, services, genre: genre || undefined, archetype: archetype || undefined }),
+    body: JSON.stringify({
+      count,
+      services,
+      genre: genre || undefined,
+      archetype: archetype || undefined,
+      target_artist: targetArtist || undefined,
+    }),
   });
 }
 

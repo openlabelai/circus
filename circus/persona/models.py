@@ -87,6 +87,7 @@ class Persona:
     content_behavior: dict = field(default_factory=dict)
     profile_aesthetic: str = ""
     artist_knowledge_depth: str = ""
+    target_artist: str = ""
     behavior: BehavioralProfile = field(default_factory=BehavioralProfile)
     credentials: dict[str, ServiceCredentials] = field(default_factory=dict)
 
@@ -119,6 +120,7 @@ class Persona:
             "content_behavior": self.content_behavior,
             "profile_aesthetic": self.profile_aesthetic,
             "artist_knowledge_depth": self.artist_knowledge_depth,
+            "target_artist": self.target_artist,
             "behavior": self.behavior.to_dict(),
             "credentials": {k: v.to_dict() for k, v in self.credentials.items()},
         }
@@ -158,6 +160,7 @@ class Persona:
             content_behavior=data.get("content_behavior", {}),
             profile_aesthetic=data.get("profile_aesthetic", ""),
             artist_knowledge_depth=data.get("artist_knowledge_depth", ""),
+            target_artist=data.get("target_artist", ""),
             behavior=behavior,
             credentials=creds,
         )

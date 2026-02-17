@@ -142,10 +142,12 @@ def generate_personas(
     age_max: int | None = None,
     genre: str | None = None,
     archetype: str | None = None,
+    target_artist: str | None = None,
 ):
     return _gen_personas(
         count, services=services,
         niche=niche, tone=tone,
         age_min=age_min, age_max=age_max,
         genre=genre, archetype=archetype,
+        target_artist=target_artist,
     )

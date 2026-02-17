@@ -39,6 +39,7 @@ class Persona(models.Model):
     content_behavior = models.JSONField(default=dict, blank=True)
     profile_aesthetic = models.CharField(max_length=50, blank=True, default="")
     artist_knowledge_depth = models.CharField(max_length=20, blank=True, default="")
+    target_artist = models.CharField(max_length=200, blank=True, default="")
 
     # Behavioral profile (flattened)
     engagement_style = models.CharField(max_length=20, default="passive")
