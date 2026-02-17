@@ -2,17 +2,15 @@
 
 Each device gets a ScrcpyCapture instance that:
 1. Pushes scrcpy-server.jar to the device (if not already present)
-2. Sets up ADB port forwarding
-3. Starts the scrcpy server process on-device
-4. Connects via TCP, reads raw H264, decodes frames with PyAV
-5. Caches the latest frame as JPEG bytes for serving
+2. Starts the scrcpy server process on-device via adbutils shell
+3. Connects directly to the device's abstract socket via adbutils
+4. Reads raw H264, decodes frames with PyAV, caches as JPEG
 """
 from __future__ import annotations
 
 import io
 import logging
 import socket
-import subprocess
 import threading
 import time
 from pathlib import Path
@@ -36,16 +34,14 @@ _TARGET_FPS = 5
 class ScrcpyCapture:
     """Captures screen from a single device using scrcpy-server."""
 
-    def __init__(self, serial: str, port: int):
+    def __init__(self, serial: str, scid: str):
         self.serial = serial
-        self.port = port
-        # Use a deterministic SCID derived from the port for socket name matching
-        self._scid = format(port, "08x")
+        self._scid = scid
         self._latest_frame: bytes | None = None
         self._lock = threading.Lock()
         self._running = False
         self._thread: threading.Thread | None = None
-        self._server_process: subprocess.Popen | None = None
+        self._shell_conn = None
 
     def start(self) -> None:
         if self._running:
@@ -58,26 +54,15 @@ class ScrcpyCapture:
 
     def stop(self) -> None:
         self._running = False
-        if self._server_process:
+        if self._shell_conn:
             try:
-                self._server_process.terminate()
+                self._shell_conn.close()
             except Exception:
                 pass
-            self._server_process = None
-        # Kill any scrcpy processes on device
+            self._shell_conn = None
+        # Kill scrcpy processes on device
         try:
-            subprocess.run(
-                ["adb", "-s", self.serial, "shell", "pkill", "-f", "scrcpy"],
-                capture_output=True, timeout=5,
-            )
-        except Exception:
-            pass
-        # Clean up port forward
-        try:
-            subprocess.run(
-                ["adb", "-s", self.serial, "forward", "--remove", f"tcp:{self.port}"],
-                capture_output=True, timeout=5,
-            )
+            _client().device(serial=self.serial).shell("pkill -f scrcpy")
         except Exception:
             pass
 
@@ -85,54 +70,54 @@ class ScrcpyCapture:
         with self._lock:
             return self._latest_frame
 
+    def _device(self):
+        return _client().device(serial=self.serial)
+
     def _push_jar(self) -> None:
         """Push scrcpy-server.jar to device if not present."""
-        device = _client().device(serial=self.serial)
+        device = self._device()
         result = device.shell(f"ls -l {_DEVICE_JAR_PATH} 2>/dev/null")
         jar_size = _SCRCPY_JAR.stat().st_size
         if str(jar_size) not in result:
             logger.info(f"[{self.serial}] Pushing scrcpy-server.jar")
             device.push(str(_SCRCPY_JAR), _DEVICE_JAR_PATH)
 
-    def _setup_forward(self) -> None:
-        """Set up ADB port forwarding."""
-        subprocess.run(
-            ["adb", "-s", self.serial, "forward",
-             f"tcp:{self.port}", f"localabstract:scrcpy_{self._scid}"],
-            capture_output=True, check=True, timeout=10,
+    def _start_server(self):
+        """Start scrcpy server on device, returns the shell connection."""
+        device = self._device()
+        cmd = (
+            f"CLASSPATH={_DEVICE_JAR_PATH} "
+            f"app_process / com.genymobile.scrcpy.Server {_SCRCPY_VERSION} "
+            f"tunnel_forward=true "
+            f"audio=false "
+            f"control=false "
+            f"cleanup=false "
+            f"raw_stream=true "
+            f"max_size={_THUMBNAIL_WIDTH} "
+            f"max_fps={_TARGET_FPS} "
+            f"video_bit_rate=500000 "
+            f"scid={self._scid}"
         )
+        # stream=True returns an AdbConnection that keeps the shell running
+        conn = device.shell(cmd, stream=True)
+        return conn
 
-    def _start_server(self) -> subprocess.Popen:
-        """Start scrcpy server on device."""
-        cmd = [
-            "adb", "-s", self.serial, "shell",
-            f"CLASSPATH={_DEVICE_JAR_PATH}",
-            "app_process", "/", "com.genymobile.scrcpy.Server", _SCRCPY_VERSION,
-            "tunnel_forward=true",
-            "audio=false",
-            "control=false",
-            "cleanup=false",
-            "raw_stream=true",
-            f"max_size={_THUMBNAIL_WIDTH}",
-            f"max_fps={_TARGET_FPS}",
-            "video_bit_rate=500000",
-            f"scid={self._scid}",
-        ]
-        return subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        )
-
-    def _connect_socket(self) -> socket.socket:
-        """Connect to the forwarded scrcpy TCP port with retries."""
-        for attempt in range(10):
+    def _connect_to_device(self) -> socket.socket:
+        """Connect directly to scrcpy's abstract socket on the device."""
+        from adbutils._proto import Network
+        device = self._device()
+        for attempt in range(15):
             try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock = device.create_connection(
+                    Network.LOCAL_ABSTRACT, f"scrcpy_{self._scid}"
+                )
                 sock.settimeout(5)
-                sock.connect(("127.0.0.1", self.port))
                 return sock
-            except (ConnectionRefusedError, OSError):
+            except Exception:
                 time.sleep(0.5)
-        raise ConnectionError(f"Cannot connect to scrcpy on port {self.port}")
+        raise ConnectionError(
+            f"Cannot connect to scrcpy socket scrcpy_{self._scid}"
+        )
 
     def _decode_stream(self, sock: socket.socket) -> None:
         """Read raw H264 from socket and decode frames."""
@@ -175,10 +160,7 @@ class ScrcpyCapture:
         """Main capture loop with auto-reconnect."""
         # Kill any stale scrcpy processes from previous runs
         try:
-            subprocess.run(
-                ["adb", "-s", self.serial, "shell", "pkill", "-f", "scrcpy"],
-                capture_output=True, timeout=5,
-            )
+            self._device().shell("pkill -f scrcpy")
             time.sleep(0.5)
         except Exception:
             pass
@@ -187,34 +169,28 @@ class ScrcpyCapture:
             sock = None
             try:
                 self._push_jar()
-                self._setup_forward()
-                self._server_process = self._start_server()
+                self._shell_conn = self._start_server()
                 time.sleep(1.5)
-                # Check if server process is still alive
-                if self._server_process.poll() is not None:
-                    stderr_out = self._server_process.stderr.read().decode() if self._server_process.stderr else ""
-                    logger.warning(f"[{self.serial}] scrcpy server exited: {stderr_out}")
-                    if self._running:
-                        time.sleep(3)
-                    continue
-                sock = self._connect_socket()
-                logger.info(f"[{self.serial}] Screen capture streaming on port {self.port}")
+                sock = self._connect_to_device()
+                logger.info(f"[{self.serial}] Screen capture streaming")
                 self._decode_stream(sock)
             except Exception as e:
                 if self._running:
-                    logger.warning(f"[{self.serial}] Capture error: {e}, retrying in 3s")
+                    logger.warning(
+                        f"[{self.serial}] Capture error: {e}, retrying in 3s"
+                    )
             finally:
                 if sock:
                     try:
                         sock.close()
                     except Exception:
                         pass
-                if self._server_process:
+                if self._shell_conn:
                     try:
-                        self._server_process.terminate()
+                        self._shell_conn.close()
                     except Exception:
                         pass
-                    self._server_process = None
+                    self._shell_conn = None
 
             if self._running:
                 time.sleep(3)
@@ -232,12 +208,12 @@ class ScreenCaptureManager:
         with self._lock:
             if serial in self._captures:
                 return
-            port = self._next_port
+            scid = format(self._next_port, "08x")
             self._next_port += 1
-            capture = ScrcpyCapture(serial, port)
+            capture = ScrcpyCapture(serial, scid)
             self._captures[serial] = capture
         capture.start()
-        logger.info(f"Started screen capture for {serial} on port {port}")
+        logger.info(f"Started screen capture for {serial}")
 
     def stop(self, serial: str) -> None:
         with self._lock:
