@@ -3,6 +3,7 @@ from datetime import date
 
 from django.conf import settings
 from django.db.models import Max
+from django.http import HttpResponse, StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
@@ -344,6 +345,30 @@ def device_detail(request, serial):
     if device is None:
         return Response({"error": "Device not found"}, status=status.HTTP_404_NOT_FOUND)
     return Response(device)
+
+
+@api_view(["GET"])
+def device_screen(request, serial):
+    """Return latest JPEG screenshot for a device."""
+    from api.scheduler import get_scheduler
+    manager = get_scheduler().screen_manager
+    frame = manager.get_frame(serial)
+    if frame is None:
+        return Response(
+            {"error": "No frame available"}, status=status.HTTP_404_NOT_FOUND
+        )
+    return HttpResponse(frame, content_type="image/jpeg")
+
+
+@api_view(["GET"])
+def device_screen_stream(request, serial):
+    """Return MJPEG stream for a device."""
+    from api.scheduler import get_scheduler
+    manager = get_scheduler().screen_manager
+    return StreamingHttpResponse(
+        manager.stream(serial),
+        content_type="multipart/x-mixed-replace; boundary=frame",
+    )
 
 
 @api_view(["GET"])

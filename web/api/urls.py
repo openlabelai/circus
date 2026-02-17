@@ -20,6 +20,8 @@ urlpatterns = [
     path('devices/', views.device_list),
     path('devices/refresh/', views.device_refresh),
     path('devices/<str:serial>/', views.device_detail),
+    path('devices/<str:serial>/screen/', views.device_screen),
+    path('devices/<str:serial>/screen/stream/', views.device_screen_stream),
     path('status/', views.status_overview),
     path('warming/activate/', views.warming_activate),
     path('warming/deactivate/', views.warming_deactivate),

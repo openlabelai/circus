@@ -15,6 +15,7 @@ from django.utils import timezone
 
 from circus.config import Config
 from circus.device.pool import DevicePool
+from circus.device.screen import ScreenCaptureManager
 from circus.tasks.models import Task as CircusTask
 from circus.tasks.runner import TaskRunner
 
@@ -33,7 +34,8 @@ class CircusScheduler:
 
     def __init__(self):
         self.config = Config()
-        self.pool = DevicePool()
+        self.screen_manager = ScreenCaptureManager()
+        self.pool = DevicePool(on_change=self._on_device_change)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._loop_thread: threading.Thread | None = None
         self._aps = None  # APScheduler BackgroundScheduler
@@ -82,7 +84,16 @@ class CircusScheduler:
         _timer.daemon = True
         _timer.start()
 
+    def _on_device_change(self, event: str, serial: str) -> None:
+        """Called by DevicePool when devices are added or removed."""
+        logger.info(f"Device {event}: {serial}")
+        if event == "added":
+            self.screen_manager.start(serial)
+        elif event == "removed":
+            self.screen_manager.stop(serial)
+
     def shutdown(self):
+        self.screen_manager.stop_all()
         if self._aps:
             self._aps.shutdown(wait=False)
         if self._loop:

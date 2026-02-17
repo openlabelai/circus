@@ -32,6 +32,7 @@ export default function ProjectLayout({ children }: { children: React.ReactNode 
     { href: `${prefix}/schedules`, label: "Schedules" },
     { href: `${prefix}/queue`, label: "Queue" },
     { href: `${prefix}/results`, label: "Results" },
+    { href: `${prefix}/devices`, label: "Devices" },
   ];
 
   const globalItems = [
