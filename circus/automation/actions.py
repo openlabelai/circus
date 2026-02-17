@@ -144,7 +144,7 @@ def execute_action(
         elif action_type == "clear":
             _do_clear(driver, action)
         elif action_type == "open_url":
-            driver.open_url(action["url"])
+            driver.open_url(action["url"], package=action.get("package"))
         elif action_type == "detect_screen":
             return _handle_detect_screen(driver, action)
         elif action_type == "vision":
@@ -175,11 +175,17 @@ def _handle_if(
 def _handle_repeat(
     driver: AutomationDriver, action: dict, depth: int
 ) -> ActionResult:
+    collected: list = []
     for _ in range(action["count"]):
         result = execute_actions(driver, action["actions"], depth)
         if not result.success:
             return result
-    return ActionResult(success=True)
+        if result.data is not None:
+            if isinstance(result.data, list):
+                collected.extend(result.data)
+            else:
+                collected.append(result.data)
+    return ActionResult(success=True, data=collected if collected else None)
 
 
 def _handle_while(
@@ -209,11 +215,13 @@ def _handle_try(
 
 def _do_tap(driver: AutomationDriver, action: dict) -> None:
     timeout = action.get("timeout", 10)
+    selector: dict[str, Any] = {}
     if "text" in action:
-        el = driver.wait_element(timeout=timeout, text=action["text"])
-        el.click()
-    elif "resource_id" in action:
-        el = driver.wait_element(timeout=timeout, resourceId=action["resource_id"])
+        selector["text"] = action["text"]
+    if "resource_id" in action:
+        selector["resourceId"] = action["resource_id"]
+    if selector:
+        el = driver.wait_element(timeout=timeout, **selector)
         el.click()
     else:
         driver.tap(action["x"], action["y"])
@@ -397,7 +405,7 @@ def _handle_detect_screen(driver: AutomationDriver, action: dict) -> ActionResul
     return ActionResult(success=True, data=result)
 
 
-
+def _handle_vision(driver: AutomationDriver, action: dict) -> ActionResult:
     """Screenshot the screen and send to a vision LLM for extraction."""
     from circus.llm.providers import call_vision_llm
 

@@ -92,8 +92,11 @@ class U2Driver(AutomationDriver):
         info = self.d.app_current()
         return info.get("package") if info else None
 
-    def open_url(self, url: str) -> None:
-        self.d.open_url(url)
+    def open_url(self, url: str, package: str | None = None) -> None:
+        if package:
+            self.d.shell(f'am start -a android.intent.action.VIEW -d "{url}" -p {package}')
+        else:
+            self.d.open_url(url)
 
     def dump_hierarchy(self) -> str:
         return self.d.dump_hierarchy()

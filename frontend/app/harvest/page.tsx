@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   getDevices,
   getHarvestJobs,
+  deleteHarvestJob,
   getHarvestedProfiles,
   startHarvestJob,
   discardProfile,
@@ -102,12 +103,12 @@ export default function HarvestPage() {
   useEffect(loadJobs, [loadJobs]);
 
   // -- Auto-refresh while any job is running/queued --
+  const hasActive = jobs.some((j) => j.status === "running" || j.status === "queued");
   useEffect(() => {
-    const hasActive = jobs.some((j) => j.status === "running" || j.status === "queued");
     if (!hasActive) return;
     const interval = setInterval(loadJobs, 5000);
     return () => clearInterval(interval);
-  }, [jobs, loadJobs]);
+  }, [hasActive, loadJobs]);
 
   // -- Load profiles --
   const loadProfiles = useCallback(() => {
@@ -119,6 +120,15 @@ export default function HarvestPage() {
   }, [filterArtist, filterStatus, filterSourceType]);
 
   useEffect(loadProfiles, [loadProfiles]);
+
+  // -- Reload profiles when all jobs finish --
+  const prevHasActive = useRef(hasActive);
+  useEffect(() => {
+    if (prevHasActive.current && !hasActive) {
+      loadProfiles();
+    }
+    prevHasActive.current = hasActive;
+  }, [hasActive, loadProfiles]);
 
   // -- Derived --
   const activeHandle = platform === "instagram" ? igHandle : tiktokHandle;
@@ -152,15 +162,21 @@ export default function HarvestPage() {
     }
   };
 
+  // -- Job actions --
+  const handleDeleteJob = async (id: string) => {
+    await deleteHarvestJob(id);
+    loadJobs();
+  };
+
   // -- Profile actions --
   const handleDiscard = async (id: string) => {
     await discardProfile(id);
-    loadProfiles();
+    setProfiles((prev) => prev.filter((p) => p.id !== id));
   };
 
   const handleMarkUsed = async (id: string) => {
     await markProfileUsed(id);
-    loadProfiles();
+    setProfiles((prev) => prev.filter((p) => p.id !== id));
   };
 
   return (
@@ -285,7 +301,8 @@ export default function HarvestPage() {
                   <th className="pb-2 pr-4">Profiles</th>
                   <th className="pb-2 pr-4">Device</th>
                   <th className="pb-2 pr-4">Duration</th>
-                  <th className="pb-2">Error</th>
+                  <th className="pb-2 pr-4">Error</th>
+                  <th className="pb-2 pl-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -314,8 +331,17 @@ export default function HarvestPage() {
                     <td className="py-2 pr-4 text-gray-400">
                       {formatDuration(job.started_at, job.completed_at)}
                     </td>
-                    <td className="py-2 text-red-400 text-xs max-w-xs truncate">
+                    <td className="py-2 pr-4 text-red-400 text-xs max-w-xs truncate">
                       {job.error || ""}
+                    </td>
+                    <td className="py-2 pl-2">
+                      <button
+                        onClick={() => handleDeleteJob(job.id)}
+                        className="text-xs bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 px-2 py-1 rounded transition-colors"
+                        title="Delete job"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}

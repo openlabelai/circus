@@ -90,12 +90,17 @@ class TaskRunner:
                 if result.data and action_def.get("action") == "screenshot":
                     screenshots.append(result.data)
 
-                # Accumulate extraction data from vision actions
+                # Accumulate extraction data from vision actions only
                 # (including data bubbled up from nested control flow)
-                if result.data and action_def.get("action") != "screenshot":
+                if result.data and action_def.get("action") not in (
+                    "screenshot", "detect_screen",
+                ):
                     if isinstance(result.data, list):
-                        extraction_data.extend(result.data)
-                    elif isinstance(result.data, dict):
+                        # Filter out detect_screen results bubbled from control flow
+                        for item in result.data:
+                            if isinstance(item, dict) and "screens" not in item:
+                                extraction_data.append(item)
+                    elif isinstance(result.data, dict) and "screens" not in result.data:
                         extraction_data.append(result.data)
 
                 actions_completed += 1

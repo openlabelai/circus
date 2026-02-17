@@ -1,35 +1,70 @@
 name: harvest_instagram_followers
-description: Navigate directly to an artist's Instagram followers and extract profile data using vision LLM
+description: Navigate to an artist's Instagram followers via search and extract profile data using vision LLM
 target_package: com.instagram.android
 timeout: 600
 retry_count: 0
 actions:
-  # Open the artist's profile directly via URL
-  - action: open_url
-    url: "https://www.instagram.com/{task.artist_name}/"
+  # Force-close Instagram to start from a clean state
+  - action: app_stop
+    package: com.instagram.android
   - action: sleep
-    duration: 2.0
+    duration: 0.6
 
-  # Handle browser chooser if it appears (tap "Just once" or Instagram)
-  - action: if
-    condition:
-      text_on_screen: "Just once"
-    then:
-      - action: tap
-        text: "Just once"
-        timeout: 3
-      - action: sleep
-        duration: 3.0
-
-  # Wait for Instagram to load the profile
+  # Launch Instagram fresh
+  - action: app_start
+    package: com.instagram.android
   - action: sleep
     duration: 3.0
 
-  # Detect what screen we landed on
+  # Tap the Search/Explore tab (bottom nav bar)
+  - action: tap
+    resource_id: com.instagram.android:id/search_tab
+    timeout: 10
+  - action: sleep
+    duration: 1.2
+
+  # Tap the search input bar at the top
+  - action: tap
+    resource_id: com.instagram.android:id/action_bar_search_edit_text
+    timeout: 5
+  - action: sleep
+    duration: 0.6
+
+  # Type the artist handle
+  - action: type
+    into: com.instagram.android:id/action_bar_search_edit_text
+    into_by: resourceId
+    text: "{task.artist_name}"
+  - action: sleep
+    duration: 2.0
+
+  # Tap the Accounts tab to filter search results
+  - action: try
+    actions:
+      - action: tap
+        text: "Accounts"
+        timeout: 5
+    on_error:
+      - action: detect_screen
+  - action: sleep
+    duration: 1.2
+
+  # Tap the exact matching search result
+  - action: try
+    actions:
+      - action: tap
+        resource_id: com.instagram.android:id/row_search_user_username
+        text: "{task.artist_name}"
+        timeout: 5
+    on_error:
+      - action: detect_screen
+  - action: sleep
+    duration: 2.5
+
+  # Verify we're on the profile
   - action: detect_screen
 
   # Tap the followers count to open followers list
-  # Try multiple patterns since Instagram UI varies
   - action: try
     actions:
       - action: tap
@@ -42,10 +77,9 @@ actions:
             text: Followers
             timeout: 5
         on_error:
-          # Last resort: use detect_screen to log what we see
           - action: detect_screen
   - action: sleep
-    duration: 3.0
+    duration: 2.0
 
   # Scroll and extract followers using vision LLM
   - action: repeat
@@ -66,5 +100,5 @@ actions:
       - action: swipe
         direction: up
       - action: random_sleep
-        min: 1.5
-        max: 3.0
+        min: 0.9
+        max: 1.8

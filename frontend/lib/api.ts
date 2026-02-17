@@ -224,6 +224,10 @@ export async function getHarvestJobs(params?: {
   return request(`/harvest-jobs/${query}`);
 }
 
+export async function deleteHarvestJob(id: string): Promise<void> {
+  await fetch(`${API_URL}/harvest-jobs/${id}/`, { method: "DELETE" });
+}
+
 export async function startHarvestJob(data: {
   platform: string;
   artist_name: string;

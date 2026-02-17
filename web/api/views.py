@@ -495,9 +495,10 @@ def provider_key_delete(request, provider):
 # -- Harvest endpoints --
 
 
-class HarvestJobViewSet(viewsets.ReadOnlyModelViewSet):
+class HarvestJobViewSet(viewsets.ModelViewSet):
     queryset = HarvestJob.objects.select_related("task").all()
     serializer_class = HarvestJobSerializer
+    http_method_names = ["get", "post", "head", "options", "delete"]
 
     def get_queryset(self):
         qs = super().get_queryset()
@@ -554,7 +555,7 @@ class HarvestedProfileViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = HarvestedProfileSerializer
 
     def get_queryset(self):
-        qs = super().get_queryset()
+        qs = super().get_queryset().exclude(status="discarded")
         artist = self.request.query_params.get("artist")
         platform = self.request.query_params.get("platform")
         profile_status = self.request.query_params.get("status")
@@ -572,9 +573,8 @@ class HarvestedProfileViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"])
     def discard(self, request, pk=None):
         profile = self.get_object()
-        profile.status = "discarded"
-        profile.save(update_fields=["status"])
-        return Response({"status": "discarded"})
+        profile.delete()
+        return Response({"status": "deleted"})
 
     @action(detail=True, methods=["post"])
     def mark_used(self, request, pk=None):
