@@ -174,7 +174,7 @@ def call_llm(purpose: str, prompt: str, max_tokens: int = 300) -> str | None:
 
         provider_id = config.provider
         model = config.model
-        effective_max_tokens = config.max_tokens or max_tokens
+        effective_max_tokens = max(config.max_tokens, max_tokens)
 
         provider_info = PROVIDERS.get(provider_id)
         if provider_info is None:
@@ -216,7 +216,7 @@ def call_vision_llm(
 
         provider_id = config.provider
         model = config.model
-        effective_max_tokens = config.max_tokens or max_tokens
+        effective_max_tokens = max(config.max_tokens, max_tokens)
 
         provider_info = PROVIDERS.get(provider_id)
         if provider_info is None:
