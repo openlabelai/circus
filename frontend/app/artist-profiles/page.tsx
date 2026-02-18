@@ -9,6 +9,7 @@ import {
   runArtistResearch,
   fetchArtistComments,
   enrichArtistAPIs,
+  clearArtistComments,
 } from "@/lib/api";
 import type { ArtistProfile } from "@/lib/types";
 
@@ -358,10 +359,12 @@ export default function ArtistProfilesPage() {
     }
   };
 
+  const [intensity, setIntensity] = useState<"soft" | "mid" | "hard">("mid");
+
   const handleFetchComments = async (id: string, source: "youtube" | "instagram") => {
     setFetchingId(id);
     try {
-      await fetchArtistComments(id, source);
+      await fetchArtistComments(id, source, intensity);
       load();
     } catch (err) {
       console.error(err);
@@ -598,6 +601,36 @@ export default function ArtistProfilesPage() {
                     >
                       {isEnriching ? "Enriching..." : "Enrich from APIs"}
                     </button>
+                    <div className="ml-auto flex items-center gap-2">
+                      {totalComments > 0 && (
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Delete all ${totalComments} comments?`)) return;
+                            await clearArtistComments(profile.id);
+                            load();
+                          }}
+                          className="px-2 py-1 bg-gray-800 hover:bg-red-900/50 text-gray-500 hover:text-red-400 rounded text-[10px] font-medium"
+                        >
+                          Clear Comments
+                        </button>
+                      )}
+                      <span className="text-[10px] text-gray-500 mr-1">Intensity:</span>
+                      {(["soft", "mid", "hard"] as const).map((level) => (
+                        <button
+                          key={level}
+                          onClick={() => setIntensity(level)}
+                          className={`px-2 py-1 rounded text-[10px] font-medium ${
+                            intensity === level
+                              ? level === "soft" ? "bg-blue-600 text-white"
+                              : level === "mid" ? "bg-yellow-600 text-white"
+                              : "bg-orange-600 text-white"
+                              : "bg-gray-800 text-gray-400 hover:text-gray-200"
+                          }`}
+                        >
+                          {level}
+                        </button>
+                      ))}
+                    </div>
                     {hasApiData && (
                       <div className="flex gap-1.5 ml-2">
                         {profile.api_data.lastfm && <span className="px-2 py-0.5 bg-red-900/30 border border-red-800 rounded text-xs text-red-300">Last.fm</span>}

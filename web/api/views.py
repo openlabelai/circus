@@ -99,6 +99,15 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
         profile = self.get_object()
         source = request.data.get("source", "youtube")
 
+        # Scraping intensity: soft=20, mid=30, hard=50 comments per source
+        intensity = request.data.get("intensity", "mid")
+        intensity_map = {
+            "soft": {"num_videos": 3, "comments_per_video": 20},
+            "mid":  {"num_videos": 5, "comments_per_video": 30},
+            "hard": {"num_videos": 10, "comments_per_video": 50},
+        }
+        scrape_cfg = intensity_map.get(intensity, intensity_map["mid"])
+
         if source == "youtube":
             if not profile.youtube_url and not profile.artist_name:
                 return Response(
@@ -114,8 +123,8 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
                 result = fetch_artist_comments(
                     artist_name=profile.artist_name,
                     youtube_url=profile.youtube_url,
-                    num_videos=10,
-                    comments_per_video=500,
+                    num_videos=scrape_cfg["num_videos"],
+                    comments_per_video=scrape_cfg["comments_per_video"],
                 )
                 # Append to existing comments
                 existing = profile.scraped_comments or []
@@ -134,8 +143,8 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
                 profile.scraping_status = "done"
                 profile.last_scraped_at = timezone.now()
 
-                # Auto-fetch channel thumbnail if not already set
-                if not profile.profile_image_url and result.get("channel_id"):
+                # Always update channel thumbnail from the scraped channel
+                if result.get("channel_id"):
                     try:
                         from circus.research.youtube import fetch_channel_thumbnail
                         thumb_url = fetch_channel_thumbnail(result["channel_id"])
@@ -211,6 +220,14 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        return Response(ArtistProfileSerializer(profile).data)
+
+    @action(detail=True, methods=["post"])
+    def clear_comments(self, request, pk=None):
+        profile = self.get_object()
+        profile.scraped_comments = []
+        profile.scraping_status = "idle"
+        profile.save(update_fields=["scraped_comments", "scraping_status"])
         return Response(ArtistProfileSerializer(profile).data)
 
     @action(detail=True, methods=["post"])

@@ -64,11 +64,15 @@ export async function runArtistResearch(id: string): Promise<ArtistProfile> {
   return request(`/artist-profiles/${id}/research/`, { method: "POST" });
 }
 
-export async function fetchArtistComments(id: string, source: "youtube" | "instagram", deviceSerial?: string): Promise<ArtistProfile> {
+export async function fetchArtistComments(id: string, source: "youtube" | "instagram", intensity: "soft" | "mid" | "hard" = "mid", deviceSerial?: string): Promise<ArtistProfile> {
   return request(`/artist-profiles/${id}/fetch_comments/`, {
     method: "POST",
-    body: JSON.stringify({ source, device_serial: deviceSerial || undefined }),
+    body: JSON.stringify({ source, intensity, device_serial: deviceSerial || undefined }),
   });
+}
+
+export async function clearArtistComments(id: string): Promise<ArtistProfile> {
+  return request(`/artist-profiles/${id}/clear_comments/`, { method: "POST" });
 }
 
 export async function enrichArtistAPIs(id: string): Promise<ArtistProfile> {
