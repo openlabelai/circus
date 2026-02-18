@@ -53,6 +53,11 @@ PROVIDERS = {
         "env_var": "SPOTIFY_CLIENT_ID",
         "models": [],
     },
+    "lastfm": {
+        "label": "Last.fm",
+        "env_var": "LASTFM_API_KEY",
+        "models": [],
+    },
 }
 
 PURPOSES = ["persona_enrichment", "vision", "comment_generation", "content_generation", "artist_research"]

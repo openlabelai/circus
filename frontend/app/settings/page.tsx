@@ -141,8 +141,8 @@ export default function SettingsPage() {
         </p>
 
         {[
-          { title: "LLM Providers", items: keys.filter((k) => !["youtube", "spotify"].includes(k.provider)) },
-          { title: "Service APIs", items: keys.filter((k) => ["youtube", "spotify"].includes(k.provider)) },
+          { title: "LLM Providers", items: keys.filter((k) => !["youtube", "spotify", "lastfm"].includes(k.provider)) },
+          { title: "Service APIs", items: keys.filter((k) => ["youtube", "spotify", "lastfm"].includes(k.provider)) },
         ].map(({ title, items }) => items.length > 0 && (
           <div key={title} className="mb-5">
             <h4 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">{title}</h4>
