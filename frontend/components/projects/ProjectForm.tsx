@@ -66,6 +66,7 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
     target_platform: "",
     target_artist: "",
     genre: "",
+    country: "",
     artist_profile: null,
     target_persona_count: 0,
     max_devices: 0,
@@ -155,11 +156,20 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
                   if (profileId) {
                     const profile = artistProfiles.find((p) => p.id === profileId);
                     if (profile) {
+                      // Infer primary platform from available social handles
+                      let platform = "";
+                      if (profile.instagram_handle) platform = "instagram";
+                      else if (profile.tiktok_handle) platform = "tiktok";
+                      else if (profile.youtube_url) platform = "youtube";
+                      else if (profile.twitter_handle) platform = "twitter";
+
                       setForm((prev) => ({
                         ...prev,
                         artist_profile: profileId,
                         target_artist: profile.artist_name || prev.target_artist,
                         genre: profile.genre || prev.genre,
+                        country: profile.country || prev.country,
+                        target_platform: platform || prev.target_platform,
                       }));
                     }
                   }
@@ -181,7 +191,7 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
             </div>
           </Field>
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <Field label="Platform">
             <select className={selectClass} value={form.target_platform || ""} onChange={(e) => set("target_platform", e.target.value)}>
               {PLATFORM_OPTIONS.map((p) => (
@@ -198,6 +208,9 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
                 <option key={g} value={g}>{g || "Select genre..."}</option>
               ))}
             </select>
+          </Field>
+          <Field label="Country">
+            <input className={inputClass} value={form.country || ""} onChange={(e) => set("country", e.target.value)} placeholder="e.g. Colombia" />
           </Field>
         </div>
       </Section>

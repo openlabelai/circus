@@ -117,7 +117,7 @@ export default function ProjectsPage() {
               </div>
 
               {/* Campaign info */}
-              {(p.target_platform || p.target_artist || p.genre) && (
+              {(p.target_platform || p.target_artist || p.genre || p.country) && (
                 <div className="flex flex-wrap gap-1.5 mb-3">
                   {p.target_platform && (
                     <span className="px-2 py-0.5 bg-indigo-900/40 border border-indigo-700/50 rounded text-xs text-indigo-300">
@@ -132,6 +132,11 @@ export default function ProjectsPage() {
                   {p.genre && (
                     <span className="px-2 py-0.5 bg-purple-900/40 border border-purple-700/50 rounded text-xs text-purple-300">
                       {p.genre}
+                    </span>
+                  )}
+                  {p.country && (
+                    <span className="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded text-xs text-gray-400">
+                      {p.country}
                     </span>
                   )}
                 </div>

@@ -89,6 +89,7 @@ class Project(models.Model):
     target_platform = models.CharField(max_length=50, blank=True, default="")
     target_artist = models.CharField(max_length=200, blank=True, default="")
     genre = models.CharField(max_length=100, blank=True, default="")
+    country = models.CharField(max_length=100, blank=True, default="")
 
     # Scale
     target_persona_count = models.IntegerField(default=0)

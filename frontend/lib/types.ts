@@ -52,6 +52,7 @@ export interface Project {
   target_platform: string;
   target_artist: string;
   genre: string;
+  country: string;
   // Scale
   target_persona_count: number;
   max_devices: number;
