@@ -34,34 +34,39 @@ actions:
   min: 0.5
   max: 1
 
-# Type handle and select exact profile match
+# Type handle and wait for results to load
 - action: type
   text: "{task.instagram_handle}"
 - action: random_sleep
-  min: 3
-  max: 5
-# Use vision to tap the exact matching handle in search results
-- action: vision_tap
-  prompt: |
-    I see Instagram search results. Find the search result row that shows
-    the exact handle "{task.instagram_handle}" (shown as the username/handle text).
-    Do NOT tap on similar handles like nadira_ecuador or other partial matches.
-    Only tap the row with EXACTLY "{task.instagram_handle}" as the handle.
-    Return the coordinates of the center of that row.
+  min: 4
+  max: 6
+
+# Tap the exact profile match — try text match first, then vision fallback
+- action: try
+  actions:
+  - action: tap
+    text: "{task.instagram_handle}"
+    timeout: 5
+  on_error:
+  - action: vision_tap
+    prompt: |
+      I see Instagram search results. Find the row showing the username
+      "{task.instagram_handle}" and tap on it. Look for the exact handle text.
 - action: random_sleep
   min: 3
   max: 5
 
-# Wait for profile to load
+# Verify we landed on a profile page — wait for post count header
 - action: try
   actions:
   - action: wait
     resource_id: com.instagram.android:id/row_profile_header_textview_post_count
     timeout: 10
   on_error:
+  # Maybe the profile loaded differently, give it more time
   - action: random_sleep
-    min: 2
-    max: 3
+    min: 3
+    max: 5
 
 # Tap first post in grid using vision (coordinate-based)
 - action: vision_tap
