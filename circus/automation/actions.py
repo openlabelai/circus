@@ -153,6 +153,8 @@ def execute_action(
             return _handle_vision_tap(driver, action)
         elif action_type == "extract_elements":
             return _handle_extract_elements(driver, action)
+        elif action_type == "shell":
+            driver.shell(action["command"])
         elif action_type == "random_sleep":
             time.sleep(random.uniform(action.get("min", 0.5), action.get("max", 2.0)))
         else:
@@ -219,14 +221,25 @@ def _handle_try(
 
 def _do_tap(driver: AutomationDriver, action: dict) -> None:
     timeout = action.get("timeout", 10)
+    index = action.get("index", 0)
     selector: dict[str, Any] = {}
     if "text" in action:
         selector["text"] = action["text"]
     if "resource_id" in action:
         selector["resourceId"] = action["resource_id"]
+    if "description" in action:
+        selector["description"] = action["description"]
     if selector:
         el = driver.wait_element(timeout=timeout, **selector)
-        el.click()
+        if index > 0:
+            # Use find_element to get all matches and tap the Nth one
+            all_matches = driver.find_elements(**selector)
+            if index < len(all_matches):
+                all_matches[index].click()
+            else:
+                el.click()  # fallback to first match
+        else:
+            el.click()
     else:
         driver.tap(action["x"], action["y"])
 

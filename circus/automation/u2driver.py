@@ -108,3 +108,9 @@ class U2Driver(AutomationDriver):
 
     def dump_hierarchy(self) -> str:
         return self.d.dump_hierarchy()
+
+    def shell(self, command: str) -> str:
+        output = self.d.shell(command)
+        if isinstance(output, tuple):
+            return output[0]  # (stdout, exit_code)
+        return str(output)

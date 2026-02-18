@@ -4,20 +4,19 @@ target_package: com.instagram.android
 timeout: 600.0
 retry_count: 0
 actions:
-# Force-restart Instagram so deep link navigates cleanly
+# Force-restart Instagram so we start clean
 - action: app_stop
   package: com.instagram.android
 - action: random_sleep
   min: 1
   max: 2
-# Navigate directly to the profile via deep link — avoids search entirely
-- action: open_url
-  url: "https://www.instagram.com/{task.instagram_handle}/"
+- action: app_start
+  package: com.instagram.android
 - action: random_sleep
-  min: 5
-  max: 7
+  min: 4
+  max: 6
 
-# Dismiss any popups
+# Dismiss any login/notification popups
 - action: if
   condition:
     element_exists:
@@ -28,6 +27,51 @@ actions:
   - action: random_sleep
     min: 1
     max: 2
+
+# Navigate to profile via search — deep links are unreliable across devices
+# Step 1: Tap the Search/Explore tab
+- action: tap
+  description: Search and explore
+  timeout: 10
+- action: random_sleep
+  min: 2
+  max: 3
+
+# Step 2: Tap the search input bar at the top
+- action: tap
+  text: Search
+  timeout: 5
+- action: random_sleep
+  min: 1
+  max: 2
+
+# Step 3: Type the Instagram handle
+- action: type
+  text: "{task.instagram_handle}"
+- action: random_sleep
+  min: 2
+  max: 3
+
+# Step 4: Tap "Accounts" tab if visible (full search results page)
+- action: if
+  condition:
+    element_exists:
+      text: Accounts
+  then:
+  - action: tap
+    text: Accounts
+  - action: random_sleep
+    min: 1
+    max: 2
+
+# Step 5: Tap the search result — use index 1 to skip the search bar text match
+- action: tap
+  text: "{task.instagram_handle}"
+  index: 1
+  timeout: 10
+- action: random_sleep
+  min: 3
+  max: 5
 
 # Verify we landed on a profile page — wait for post count header
 - action: try

@@ -81,3 +81,8 @@ class AutomationDriver(ABC):
     def dump_hierarchy(self) -> str:
         """Return the UI hierarchy as XML string."""
         ...
+
+    @abstractmethod
+    def shell(self, command: str) -> str:
+        """Run an ADB shell command on the device."""
+        ...
