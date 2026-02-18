@@ -131,83 +131,90 @@ export default function SettingsPage() {
       <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-6">
         <h3 className="text-lg font-semibold mb-4">API Keys</h3>
         <p className="text-sm text-gray-400 mb-4">
-          Enter API keys for LLM providers. Keys are stored in the database and
-          can also be set via environment variables as a fallback.
+          Keys are stored in the database. Environment variables work as fallback.
         </p>
 
-        <div className="space-y-3">
-          {keys.map((k) => (
-            <div key={k.provider} className="flex items-center gap-3">
-              <span
-                className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  k.has_key ? "bg-green-400" : "bg-gray-600"
-                }`}
-              />
-              <span className="w-32 text-sm font-medium">{k.label}</span>
-
-              {k.has_key && !keyInputs[k.provider] ? (
-                <div className="flex items-center gap-2 flex-1">
-                  <span className="text-sm text-gray-500 font-mono">
-                    {k.masked_key}
-                  </span>
-                  <button
-                    onClick={() =>
-                      setKeyInputs((prev) => ({ ...prev, [k.provider]: "" }))
-                    }
-                    className="text-xs text-blue-400 hover:text-blue-300"
-                  >
-                    Change
-                  </button>
-                  <button
-                    onClick={() => handleDeleteKey(k.provider)}
-                    disabled={keySaving === k.provider}
-                    className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
-                  >
-                    {keySaving === k.provider ? "..." : "Remove"}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 flex-1">
-                  <input
-                    type="password"
-                    placeholder="Enter API key..."
-                    value={keyInputs[k.provider] || ""}
-                    onChange={(e) =>
-                      setKeyInputs((prev) => ({
-                        ...prev,
-                        [k.provider]: e.target.value,
-                      }))
-                    }
-                    className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono"
+        {[
+          { title: "LLM Providers", items: keys.filter((k) => !["youtube", "spotify"].includes(k.provider)) },
+          { title: "Service APIs", items: keys.filter((k) => ["youtube", "spotify"].includes(k.provider)) },
+        ].map(({ title, items }) => items.length > 0 && (
+          <div key={title} className="mb-5">
+            <h4 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">{title}</h4>
+            <div className="space-y-3">
+              {items.map((k) => (
+                <div key={k.provider} className="flex items-center gap-3">
+                  <span
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                      k.has_key ? "bg-green-400" : "bg-gray-600"
+                    }`}
                   />
-                  <button
-                    onClick={() => handleSaveKey(k.provider)}
-                    disabled={
-                      keySaving === k.provider || !keyInputs[k.provider]
-                    }
-                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-xs font-medium"
-                  >
-                    {keySaving === k.provider ? "..." : "Save"}
-                  </button>
-                  {k.has_key && (
-                    <button
-                      onClick={() =>
-                        setKeyInputs((prev) => {
-                          const next = { ...prev };
-                          delete next[k.provider];
-                          return next;
-                        })
-                      }
-                      className="text-xs text-gray-400 hover:text-gray-300"
-                    >
-                      Cancel
-                    </button>
+                  <span className="w-40 text-sm font-medium">{k.label}</span>
+
+                  {k.has_key && !keyInputs[k.provider] ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <span className="text-sm text-gray-500 font-mono">
+                        {k.masked_key}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setKeyInputs((prev) => ({ ...prev, [k.provider]: "" }))
+                        }
+                        className="text-xs text-blue-400 hover:text-blue-300"
+                      >
+                        Change
+                      </button>
+                      <button
+                        onClick={() => handleDeleteKey(k.provider)}
+                        disabled={keySaving === k.provider}
+                        className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50"
+                      >
+                        {keySaving === k.provider ? "..." : "Remove"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-1">
+                      <input
+                        type="password"
+                        placeholder={k.provider === "spotify" ? "client_id:client_secret" : "Enter API key..."}
+                        value={keyInputs[k.provider] || ""}
+                        onChange={(e) =>
+                          setKeyInputs((prev) => ({
+                            ...prev,
+                            [k.provider]: e.target.value,
+                          }))
+                        }
+                        className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono"
+                      />
+                      <button
+                        onClick={() => handleSaveKey(k.provider)}
+                        disabled={
+                          keySaving === k.provider || !keyInputs[k.provider]
+                        }
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-xs font-medium"
+                      >
+                        {keySaving === k.provider ? "..." : "Save"}
+                      </button>
+                      {k.has_key && (
+                        <button
+                          onClick={() =>
+                            setKeyInputs((prev) => {
+                              const next = { ...prev };
+                              delete next[k.provider];
+                              return next;
+                            })
+                          }
+                          className="text-xs text-gray-400 hover:text-gray-300"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
+              ))}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
       {/* LLM Configuration Section */}

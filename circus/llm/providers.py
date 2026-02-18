@@ -42,6 +42,17 @@ PROVIDERS = {
         "base_url": "https://api.deepseek.com",
         "models": ["deepseek-chat"],
     },
+    # Service API keys (not LLM providers — no models)
+    "youtube": {
+        "label": "YouTube",
+        "env_var": "YOUTUBE_API_KEY",
+        "models": [],
+    },
+    "spotify": {
+        "label": "Spotify (client_id:client_secret)",
+        "env_var": "SPOTIFY_CLIENT_ID",
+        "models": [],
+    },
 }
 
 PURPOSES = ["persona_enrichment", "vision", "comment_generation", "content_generation", "artist_research"]
@@ -66,9 +77,14 @@ def get_api_key(provider_id: str) -> str:
 
 
 def get_available_providers() -> list[dict]:
-    """Return providers with their key availability status."""
+    """Return LLM providers with their key availability status.
+
+    Skips service-only entries (youtube, spotify) that have no models.
+    """
     result = []
     for provider_id, info in PROVIDERS.items():
+        if not info["models"]:
+            continue
         result.append({
             "id": provider_id,
             "label": info["label"],
