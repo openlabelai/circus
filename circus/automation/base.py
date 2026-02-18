@@ -73,6 +73,11 @@ class AutomationDriver(ABC):
     def open_url(self, url: str, package: str | None = None) -> None: ...
 
     @abstractmethod
+    def find_elements(self, **selector: Any) -> list[Any]:
+        """Return all elements matching the selector."""
+        ...
+
+    @abstractmethod
     def dump_hierarchy(self) -> str:
         """Return the UI hierarchy as XML string."""
         ...

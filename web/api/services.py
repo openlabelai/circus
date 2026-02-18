@@ -69,27 +69,18 @@ def get_device(serial: str) -> dict | None:
 def _db_task_to_circus(task, variables: dict | None = None) -> CircusTask:
     """Convert a Django Task model instance to a circus Task dataclass.
 
-    If variables is provided, substitute {task.key} placeholders in action strings.
+    If variables is provided, they are passed to CircusTask.variables
+    for {task.key} placeholder substitution by the runner.
     """
-    import copy
-    import json
-
-    actions = task.actions
-    if variables:
-        # Deep-copy and substitute variables in string values
-        actions = json.loads(
-            json.dumps(copy.deepcopy(actions))
-            .replace("{task.instagram_handle}", variables.get("instagram_handle", ""))
-        )
-
     return CircusTask(
         name=task.name,
-        actions=actions,
+        actions=task.actions,
         description=task.description,
         target_package=task.target_package,
         timeout=task.timeout,
         retry_count=task.retry_count,
         id=task.id,
+        variables=variables or {},
     )
 
 

@@ -98,5 +98,13 @@ class U2Driver(AutomationDriver):
         else:
             self.d.open_url(url)
 
+    def find_elements(self, **selector: Any) -> list[Any]:
+        el = self.d(**selector)
+        results = []
+        count = el.count
+        for i in range(count):
+            results.append(el[i])
+        return results
+
     def dump_hierarchy(self) -> str:
         return self.d.dump_hierarchy()

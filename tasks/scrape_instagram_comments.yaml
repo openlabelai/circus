@@ -1,5 +1,5 @@
 name: scrape_instagram_comments
-description: Open Instagram, navigate to an artist's profile, and extract comments from recent posts using vision
+description: Open Instagram, navigate to an artist's profile, and extract comments from recent posts
 target_package: com.instagram.android
 timeout: 600.0
 retry_count: 0
@@ -22,106 +22,112 @@ actions:
     min: 1
     max: 2
 
-# Tap search icon (magnifying glass)
+# Navigate to search
 - action: tap
-  description: search_icon
   resource_id: com.instagram.android:id/search_tab
 - action: random_sleep
   min: 1
   max: 2
-
-# Type artist handle in search
 - action: tap
-  description: search_box
   resource_id: com.instagram.android:id/action_bar_search_edit_text
 - action: random_sleep
   min: 0.5
   max: 1
-- action: type_text
+
+# Type handle and select exact profile match
+- action: type
   text: "{task.instagram_handle}"
 - action: random_sleep
   min: 2
   max: 3
-
-# Tap Accounts filter if visible
-- action: if
-  condition:
-    element_exists:
-      text: Accounts
-  then:
-  - action: tap
-    text: Accounts
-  - action: random_sleep
-    min: 1
-    max: 2
-
-# Tap first search result
 - action: tap
-  index: 0
-  resource_id: com.instagram.android:id/row_search_user_username
+  text: "{task.instagram_handle}"
+- action: random_sleep
+  min: 3
+  max: 5
+
+# Wait for profile to load
+- action: try
+  actions:
+  - action: wait
+    resource_id: com.instagram.android:id/row_profile_header_textview_post_count
+    timeout: 10
+  on_error:
+  - action: random_sleep
+    min: 2
+    max: 3
+
+# Tap first post in grid using vision (coordinate-based)
+- action: vision_tap
+  prompt: |
+    I see an Instagram profile page. Below the bio/stats section there is a grid of photo/video posts arranged in 3 columns.
+    I need to tap the FIRST post (top-left thumbnail in the grid).
+    Return the coordinates of the center of that first thumbnail image.
 - action: random_sleep
   min: 2
   max: 3
 
-# Loop through 3 posts
+# For 3 posts: open comments, extract, scroll to next post
 - action: repeat
   count: 3
   actions:
   - action: try
     actions:
-    # Tap a post in the grid (first available)
+    # Tap the comment button to open full comment view
     - action: tap
-      description: post_thumbnail
-      resource_id: com.instagram.android:id/image_button
-      index: "{repeat_index}"
-    - action: random_sleep
-      min: 1
-      max: 2
-
-    # Tap "View all comments" or comments icon
-    - action: if
-      condition:
-        element_exists:
-          text_contains: View all
-      then:
-      - action: tap
-        text_contains: View all
-      else:
-      - action: tap
-        description: comments_icon
-        resource_id: com.instagram.android:id/row_feed_button_comment
+      resource_id: com.instagram.android:id/row_feed_button_comment
+      timeout: 5
     - action: random_sleep
       min: 2
       max: 3
-
-    # Extract comments with vision (3 rounds of scroll + extract)
-    - action: repeat
-      count: 3
-      actions:
-      - action: vision
-        prompt: |
-          Extract all visible Instagram comment text. Return JSON: {"comments": ["comment1", "comment2", ...]}
-          Only the comment text — no usernames, timestamps, or like counts.
-        extract: true
-      - action: swipe
-        direction: up
-      - action: random_sleep
-        min: 1
-        max: 2
-
-    # Go back to profile
-    - action: back
-    - action: random_sleep
-      min: 0.5
-      max: 1
-    - action: back
+    # Extract comments from the comment thread via UI hierarchy
+    - action: extract_elements
+      resource_id: com.instagram.android:id/row_comment_textview_comment
+      key: comments
     - action: random_sleep
       min: 1
       max: 2
-
+    # Scroll down for more comments
+    - action: swipe
+      direction: up
+    - action: random_sleep
+      min: 1
+      max: 2
+    # Extract more comments after scrolling
+    - action: extract_elements
+      resource_id: com.instagram.android:id/row_comment_textview_comment
+      key: comments
+    - action: random_sleep
+      min: 1
+      max: 2
+    # Scroll down once more
+    - action: swipe
+      direction: up
+    - action: random_sleep
+      min: 1
+      max: 2
+    # Extract third batch
+    - action: extract_elements
+      resource_id: com.instagram.android:id/row_comment_textview_comment
+      key: comments
+    # Go back to post view
+    - action: press
+      key: back
+    - action: random_sleep
+      min: 1
+      max: 2
     on_error:
-    - action: screenshot
-    - action: back
-    - action: random_sleep
-      min: 1
-      max: 2
+    # If comment button not found, try vision extraction as fallback
+    - action: vision
+      prompt: |
+        Extract all visible Instagram comment text from this screen.
+        Return JSON: {"comments": ["comment1", "comment2", ...]}
+        Only the comment text — no usernames, timestamps, or like counts.
+        If no comments are visible, return {"comments": []}
+      extract: true
+  # Swipe to next post in feed
+  - action: swipe
+    direction: up
+  - action: random_sleep
+    min: 2
+    max: 3

@@ -171,20 +171,18 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
                 extraction_data = result_data.get("extraction_data", [])
                 ig_comments = []
                 for item in extraction_data:
-                    if isinstance(item, dict) and "comments" in item:
-                        for comment_text in item["comments"]:
-                            if isinstance(comment_text, str) and comment_text.strip():
-                                ig_comments.append({
-                                    "text": comment_text.strip(),
-                                    "likes": 0,
-                                    "source": "instagram",
-                                })
-                    elif isinstance(item, str) and item.strip():
-                        ig_comments.append({
-                            "text": item.strip(),
-                            "likes": 0,
-                            "source": "instagram",
-                        })
+                    if not isinstance(item, dict):
+                        continue
+                    # Handle both "comments" key (from vision/extract_elements)
+                    # and "texts" key (default from extract_elements)
+                    comment_list = item.get("comments") or item.get("texts") or []
+                    for comment_text in comment_list:
+                        if isinstance(comment_text, str) and comment_text.strip():
+                            ig_comments.append({
+                                "text": comment_text.strip(),
+                                "likes": 0,
+                                "source": "instagram",
+                            })
 
                 existing = profile.scraped_comments or []
                 existing.extend(ig_comments)
@@ -444,6 +442,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         task = self.get_object()
         device_serial = request.data.get("device_serial", None)
         background = request.data.get("background", False)
+        variables = request.data.get("variables", None)
 
         if background:
             run = QueuedRun.objects.create(
@@ -459,7 +458,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
         from api.services import run_task_on_device
         try:
-            result_data = run_task_on_device(task, device_serial)
+            result_data = run_task_on_device(task, device_serial, variables=variables)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         # Save to DB

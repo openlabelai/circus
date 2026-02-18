@@ -149,6 +149,10 @@ def execute_action(
             return _handle_detect_screen(driver, action)
         elif action_type == "vision":
             return _handle_vision(driver, action)
+        elif action_type == "vision_tap":
+            return _handle_vision_tap(driver, action)
+        elif action_type == "extract_elements":
+            return _handle_extract_elements(driver, action)
         elif action_type == "random_sleep":
             time.sleep(random.uniform(action.get("min", 0.5), action.get("max", 2.0)))
         else:
@@ -403,6 +407,97 @@ def _handle_detect_screen(driver: AutomationDriver, action: dict) -> ActionResul
     result = _detect_screen_from_hierarchy(hierarchy)
     logger.info("Screen detected: %s (package: %s)", result["screen"], result["package"])
     return ActionResult(success=True, data=result)
+
+
+def _handle_extract_elements(driver: AutomationDriver, action: dict) -> ActionResult:
+    """Extract text from all UI elements matching a selector.
+
+    Returns a dict with a "texts" list containing the text of each matching element.
+    Useful for scraping visible text from RecyclerViews, comment lists, etc.
+
+    YAML example:
+        action: extract_elements
+        resource_id: com.instagram.android:id/row_comment_textview_comment
+        key: comments          # optional, defaults to "texts"
+        timeout: 5             # optional, how long to wait for first element
+    """
+    selector: dict[str, Any] = {}
+    if "resource_id" in action:
+        selector["resourceId"] = action["resource_id"]
+    if "text" in action:
+        selector["text"] = action["text"]
+    if "class_name" in action:
+        selector["className"] = action["class_name"]
+
+    if not selector:
+        return ActionResult(success=False, error="extract_elements: no selector provided")
+
+    timeout = action.get("timeout", 5)
+    key = action.get("key", "texts")
+
+    # Wait briefly for at least one element to appear
+    el = driver.find_element(**selector)
+    if el is None:
+        # No elements found — not an error, just empty
+        logger.info("extract_elements: no elements found for %s", selector)
+        return ActionResult(success=True, data={key: []})
+
+    # Get all matching elements
+    elements = driver.find_elements(**selector)
+    texts = []
+    for el in elements:
+        try:
+            info = el.info
+            text = info.get("text", "")
+            if text and text.strip():
+                texts.append(text.strip())
+        except Exception:
+            continue
+
+    logger.info("extract_elements: found %d texts for %s", len(texts), selector)
+    return ActionResult(success=True, data={key: texts})
+
+
+def _handle_vision_tap(driver: AutomationDriver, action: dict) -> ActionResult:
+    """Use vision LLM to locate an element on screen and tap it.
+
+    The LLM is asked to return pixel coordinates for the target.
+    The driver then taps those coordinates.
+    """
+    from circus.llm.providers import call_vision_llm
+
+    img = driver.screenshot()
+    w, h = img.size
+    user_prompt = action.get("prompt", "Find the element to tap.")
+    max_tokens = action.get("max_tokens", 300)
+
+    coordinate_prompt = (
+        f"The screen is {w}x{h} pixels. "
+        f"{user_prompt}\n\n"
+        "Return ONLY a JSON object with the pixel coordinates to tap: "
+        '{"x": <number>, "y": <number>}\n'
+        "No explanation, no markdown — just the JSON."
+    )
+
+    text = call_vision_llm("vision", img, coordinate_prompt, max_tokens)
+    if text is None:
+        return ActionResult(success=False, error="Vision LLM returned no response for vision_tap")
+
+    # Parse coordinates
+    try:
+        # Strip markdown if present
+        cleaned = text.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.split("\n")
+            cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+        coords = json.loads(cleaned)
+        x, y = int(coords["x"]), int(coords["y"])
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as e:
+        return ActionResult(success=False, error=f"vision_tap: failed to parse coordinates from LLM: {text[:200]}")
+
+    logger.info("vision_tap: tapping at (%d, %d) on %dx%d screen", x, y, w, h)
+    driver.tap(x, y)
+    return ActionResult(success=True, data={"tapped": {"x": x, "y": y}})
 
 
 def _handle_vision(driver: AutomationDriver, action: dict) -> ActionResult:
