@@ -62,16 +62,18 @@ The repo is mounted at `/app` inside containers, so local file edits are reflect
 
 ```
 circus/              # Core Python library
+  automation/        # Action engine (actions.py, u2driver.py, base.py)
   persona/           # Persona generation, artist research
   research/          # YouTube API, Instagram scraping, API enrichment
   llm/               # LLM provider abstraction
-  device/            # ADB device management, automation engine
+  device/            # ADB device management
+  tasks/             # Task runner, models, executor
 web/                 # Django project
   api/               # Models, serializers, views, scheduler
   circus_web/        # Django settings
 frontend/            # Next.js app
   app/               # App router pages
-    artist-profiles/ # Artist profile management
+    artist-profiles/ # Artist profile list (single page, no [id] detail route)
     personas/        # Persona CRUD
     projects/        # Project management
     devices/         # Device management
@@ -81,6 +83,7 @@ frontend/            # Next.js app
   lib/               # API client (api.ts), types (types.ts)
   components/        # Shared components
 tasks/               # YAML task definitions
+scripts/             # Evaluation scripts, test utilities
 ```
 
 ## Database
@@ -115,6 +118,41 @@ youtube_url = serializers.URLField(max_length=500, required=False, allow_blank=T
 2. Django auto-reloads; Next.js hot-reloads
 3. For model changes: `docker exec circus-django python manage.py makemigrations api` then `docker exec circus-django python manage.py migrate`
 4. Git branch is `main`, remote is `origin` on GitHub (`openlabelai/circus`)
+
+## Task YAML Automation Engine
+
+YAML task definitions in `tasks/` are synced to the DB and executed by `circus/tasks/runner.py` via `circus/automation/actions.py`.
+
+### Key Action Types
+- `tap` — by text, resource_id, description (content-desc), or coordinates
+- `swipe` — `direction: up/down/left/right` with optional `scale` factor (1.0 = default 40% screen, 1.75 = 70%, etc.)
+- `vision` / `vision_tap` — Claude Vision for screen reading / tapping
+- `extract_elements` — extract text by resource ID (returns `success: True` even when empty — won't trigger `try/on_error`)
+- `repeat`, `if`, `try/on_error`, `assert`, `wait` — control flow
+- `app_start`, `app_stop`, `open_url` — app lifecycle
+- `random_sleep` — humanized delays
+
+### YAML Condition Gotcha
+In `if`/`assert` conditions, `element_exists`/`element_not_exists` pass kwargs directly to the driver — use **camelCase** (`resourceId`, `contentDesc`), not snake_case. Action handlers like `tap` convert snake_case internally, but conditions do not.
+
+### Instagram Scraper Task
+`tasks/scrape_instagram_comments.yaml` — navigates to an artist's IG profile, opens posts, extracts comments via Claude Vision (3 batches per post with scrolling). Uses GramAddict-style resource IDs with vision fallbacks for Reels.
+
+Key variables: `{task.instagram_handle}`, `{task.post_count}`
+
+### Comment Scraping Flow (frontend → backend)
+1. Frontend (`artist-profiles/page.tsx`) calls `POST /api/artist-profiles/{id}/fetch_comments/` with `{source, intensity, device_serial}`
+2. YouTube: calls `circus/research/youtube.py` → YouTube Data API v3 directly
+3. Instagram: syncs YAML task → runs on device via `TaskRunner` → extracts comments from `extraction_data` with deduplication
+4. Comments stored in `ArtistProfile.scraped_comments` (JSON list)
+5. Research prompt (`circus/persona/artist_research.py`) includes scraped comments as grounding data
+
+### Artist Research Flow
+1. Frontend calls `POST /api/artist-profiles/{id}/research/`
+2. Auto-enriches via Last.fm/Spotify/Genius APIs if `api_data` is empty
+3. Builds prompt with artist identity + scraped comments + API data as grounding
+4. Calls LLM via `call_llm("artist_research", prompt)`
+5. Returns JSON profile: fanbase characteristics, demographics, vocabulary, slang, similar artists, etc.
 
 ## Environment
 
