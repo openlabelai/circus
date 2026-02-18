@@ -99,12 +99,12 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
         profile = self.get_object()
         source = request.data.get("source", "youtube")
 
-        # Scraping intensity: soft=20, mid=30, hard=50 comments per source
+        # Scraping intensity levels
         intensity = request.data.get("intensity", "mid")
         intensity_map = {
-            "soft": {"num_videos": 3, "comments_per_video": 20},
-            "mid":  {"num_videos": 5, "comments_per_video": 30},
-            "hard": {"num_videos": 10, "comments_per_video": 50},
+            "soft": {"num_videos": 3, "comments_per_video": 20, "ig_posts": 3},
+            "mid":  {"num_videos": 5, "comments_per_video": 30, "ig_posts": 5},
+            "hard": {"num_videos": 10, "comments_per_video": 50, "ig_posts": 8},
         }
         scrape_cfg = intensity_map.get(intensity, intensity_map["mid"])
 
@@ -184,7 +184,10 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
                 result_data = run_task_on_device(
                     scrape_task,
                     serial=device_serial,
-                    variables={"instagram_handle": profile.instagram_handle},
+                    variables={
+                        "instagram_handle": profile.instagram_handle,
+                        "post_count": str(scrape_cfg["ig_posts"]),
+                    },
                 )
 
                 # Extract comments from extraction_data

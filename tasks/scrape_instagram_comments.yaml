@@ -67,9 +67,9 @@ actions:
   min: 2
   max: 3
 
-# For 3 posts: open comments, extract, scroll to next post
+# For N posts: open comments, extract, scroll to next post
 - action: repeat
-  count: 3
+  count: "{task.post_count}"
   actions:
   - action: try
     actions:

@@ -58,10 +58,16 @@ def find_channel_id(artist_name: str, youtube_url: str = "") -> str:
 
     # Try to extract from URL first
     if youtube_url:
+        # Handle /channel/UC... URLs (most reliable)
+        channel_match = re.search(r"youtube\.com/channel/(UC[^/?]+)", youtube_url)
+        if channel_match:
+            return channel_match.group(1)
+
         # Handle @handle URLs
         handle_match = re.search(r"youtube\.com/@([^/?]+)", youtube_url)
         if handle_match:
             handle = handle_match.group(1)
+            # Try exact handle first
             resp = requests.get(
                 "https://www.googleapis.com/youtube/v3/channels",
                 params={"forHandle": handle, "part": "id", "key": api_key},
@@ -72,28 +78,50 @@ def find_channel_id(artist_name: str, youtube_url: str = "") -> str:
             if items:
                 return items[0]["id"]
 
-        # Handle /channel/UC... URLs
-        channel_match = re.search(r"youtube\.com/channel/(UC[^/?]+)", youtube_url)
-        if channel_match:
-            return channel_match.group(1)
+            # Handle not found — search using the handle as query
+            # (catches typos like "nadiramusica" vs "nadiramusic")
+            resp = requests.get(
+                "https://www.googleapis.com/youtube/v3/search",
+                params={
+                    "q": handle,
+                    "type": "channel",
+                    "part": "snippet",
+                    "maxResults": 5,
+                    "key": api_key,
+                },
+                timeout=10,
+            )
+            resp.raise_for_status()
+            items = resp.json().get("items", [])
+            for item in items:
+                if "- Topic" not in item["snippet"]["title"]:
+                    return item["id"]["channelId"]
+            if items:
+                return items[0]["id"]["channelId"]
 
-    # Fall back to search
+    # Fall back to search — fetch multiple results and skip auto-generated "Topic" channels
     resp = requests.get(
         "https://www.googleapis.com/youtube/v3/search",
         params={
             "q": artist_name,
             "type": "channel",
-            "part": "id",
-            "maxResults": 1,
+            "part": "snippet",
+            "maxResults": 5,
             "key": api_key,
         },
         timeout=10,
     )
     resp.raise_for_status()
     items = resp.json().get("items", [])
-    if not items:
-        raise ValueError(f"No YouTube channel found for '{artist_name}'")
-    return items[0]["id"]["channelId"]
+    # Prefer non-Topic channels
+    for item in items:
+        title = item["snippet"]["title"]
+        if "- Topic" not in title:
+            return item["id"]["channelId"]
+    # All results are Topic channels — use first one
+    if items:
+        return items[0]["id"]["channelId"]
+    raise ValueError(f"No YouTube channel found for '{artist_name}'")
 
 
 def get_recent_video_ids(channel_id: str, limit: int = 10) -> list[dict]:

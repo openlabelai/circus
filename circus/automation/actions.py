@@ -180,7 +180,7 @@ def _handle_repeat(
     driver: AutomationDriver, action: dict, depth: int
 ) -> ActionResult:
     collected: list = []
-    for _ in range(action["count"]):
+    for _ in range(int(action["count"])):
         result = execute_actions(driver, action["actions"], depth)
         if not result.success:
             return result
