@@ -313,10 +313,26 @@ export default function ArtistProfilesPage() {
   };
 
   const handleSave = async () => {
+    // Auto-format social handles → full URLs
+    const cleaned = { ...form };
+    if (cleaned.youtube_url && !cleaned.youtube_url.startsWith("http")) {
+      const handle = cleaned.youtube_url.replace(/^@/, "");
+      cleaned.youtube_url = `https://www.youtube.com/@${handle}`;
+    }
+    if (cleaned.instagram_handle) {
+      cleaned.instagram_handle = cleaned.instagram_handle.replace(/^@/, "");
+    }
+    if (cleaned.tiktok_handle) {
+      cleaned.tiktok_handle = cleaned.tiktok_handle.replace(/^@/, "");
+    }
+    if (cleaned.twitter_handle) {
+      cleaned.twitter_handle = cleaned.twitter_handle.replace(/^@/, "");
+    }
+
     if (editingId) {
-      await updateArtistProfile(editingId, form);
+      await updateArtistProfile(editingId, cleaned);
     } else {
-      await createArtistProfile(form);
+      await createArtistProfile(cleaned);
     }
     resetForm();
     setShowForm(false);
