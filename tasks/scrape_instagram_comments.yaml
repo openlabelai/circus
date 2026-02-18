@@ -4,11 +4,12 @@ target_package: com.instagram.android
 timeout: 600.0
 retry_count: 0
 actions:
-- action: app_start
-  package: com.instagram.android
+# Navigate directly to the profile via deep link — avoids search entirely
+- action: open_url
+  url: "https://www.instagram.com/{task.instagram_handle}/"
 - action: random_sleep
-  min: 2
-  max: 4
+  min: 4
+  max: 6
 
 # Dismiss any popups
 - action: if
@@ -22,40 +23,6 @@ actions:
     min: 1
     max: 2
 
-# Navigate to search
-- action: tap
-  resource_id: com.instagram.android:id/search_tab
-- action: random_sleep
-  min: 1
-  max: 2
-- action: tap
-  resource_id: com.instagram.android:id/action_bar_search_edit_text
-- action: random_sleep
-  min: 0.5
-  max: 1
-
-# Type handle and wait for results to load
-- action: type
-  text: "{task.instagram_handle}"
-- action: random_sleep
-  min: 4
-  max: 6
-
-# Tap the exact profile match — try text match first, then vision fallback
-- action: try
-  actions:
-  - action: tap
-    text: "{task.instagram_handle}"
-    timeout: 5
-  on_error:
-  - action: vision_tap
-    prompt: |
-      I see Instagram search results. Find the row showing the username
-      "{task.instagram_handle}" and tap on it. Look for the exact handle text.
-- action: random_sleep
-  min: 3
-  max: 5
-
 # Verify we landed on a profile page — wait for post count header
 - action: try
   actions:
@@ -63,7 +30,6 @@ actions:
     resource_id: com.instagram.android:id/row_profile_header_textview_post_count
     timeout: 10
   on_error:
-  # Maybe the profile loaded differently, give it more time
   - action: random_sleep
     min: 3
     max: 5
