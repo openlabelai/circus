@@ -99,12 +99,12 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
         profile = self.get_object()
         source = request.data.get("source", "youtube")
 
-        # Scraping intensity levels
+        # Scraping intensity levels — spread across more videos, max 10 comments each
         intensity = request.data.get("intensity", "mid")
         intensity_map = {
-            "soft": {"num_videos": 3, "comments_per_video": 20, "ig_posts": 3},
-            "mid":  {"num_videos": 5, "comments_per_video": 30, "ig_posts": 5},
-            "hard": {"num_videos": 10, "comments_per_video": 50, "ig_posts": 8},
+            "soft": {"num_videos": 5,  "comments_per_video": 10, "ig_posts": 3},
+            "mid":  {"num_videos": 10, "comments_per_video": 10, "ig_posts": 5},
+            "hard": {"num_videos": 15, "comments_per_video": 10, "ig_posts": 8},
         }
         scrape_cfg = intensity_map.get(intensity, intensity_map["mid"])
 
