@@ -262,12 +262,13 @@ actions:
       - If fewer than 10 are visible, return as many as visible
       - If this is not a comments screen, return {"comments": []}
 
-  # Scroll comments drawer for more comments
+  # Scroll comments drawer for more comments (scale 1.75 ≈ 70% of screen)
   - action: random_sleep
     min: 1
     max: 2
   - action: swipe
     direction: up
+    scale: 1.75
   - action: random_sleep
     min: 1.5
     max: 2.5
@@ -284,12 +285,13 @@ actions:
       - If fewer than 10 are visible, return as many as visible
       - If this is not a comments screen, return {"comments": []}
 
-  # Scroll again for batch 3
+  # Scroll again for batch 3 (same large swipe)
   - action: random_sleep
     min: 1
     max: 2
   - action: swipe
     direction: up
+    scale: 1.75
   - action: random_sleep
     min: 1.5
     max: 2.5

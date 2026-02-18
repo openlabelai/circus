@@ -58,10 +58,13 @@ def find_channel_id(artist_name: str, youtube_url: str = "") -> str:
 
     # Try to extract from URL first
     if youtube_url:
-        # Handle /channel/UC... URLs (most reliable)
+        # Handle /channel/UC... URLs — validate length (real IDs are 24 chars)
         channel_match = re.search(r"youtube\.com/channel/(UC[^/?]+)", youtube_url)
         if channel_match:
-            return channel_match.group(1)
+            cid = channel_match.group(1)
+            if len(cid) == 24:
+                return cid
+            logger.warning(f"Ignoring truncated channel ID from URL: {cid}")
 
         # Handle @handle URLs
         handle_match = re.search(r"youtube\.com/@([^/?]+)", youtube_url)

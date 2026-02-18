@@ -263,6 +263,20 @@ def _do_swipe(driver: AutomationDriver, action: dict) -> None:
         if direction not in _SWIPE_DIRECTIONS:
             raise ValueError(f"Unknown swipe direction: {direction}")
         sx_pct, sy_pct, ex_pct, ey_pct = _SWIPE_DIRECTIONS[direction]
+        # Optional scale factor: 1.0 = default 40% of screen, 1.5 = 60%, etc.
+        scale = float(action.get("scale", 1.0))
+        if scale != 1.0:
+            cx = (sx_pct + ex_pct) / 2
+            cy = (sy_pct + ey_pct) / 2
+            sx_pct = cx + (sx_pct - cx) * scale
+            sy_pct = cy + (sy_pct - cy) * scale
+            ex_pct = cx + (ex_pct - cx) * scale
+            ey_pct = cy + (ey_pct - cy) * scale
+            # Clamp to [0.02, 0.98] to stay on screen
+            sx_pct = max(0.02, min(0.98, sx_pct))
+            sy_pct = max(0.02, min(0.98, sy_pct))
+            ex_pct = max(0.02, min(0.98, ex_pct))
+            ey_pct = max(0.02, min(0.98, ey_pct))
         w, h = driver.get_screen_size()
         driver.swipe(sx_pct * w, sy_pct * h, ex_pct * w, ey_pct * h)
     else:
