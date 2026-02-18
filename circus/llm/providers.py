@@ -49,7 +49,7 @@ PROVIDERS = {
         "models": [],
     },
     "spotify": {
-        "label": "Spotify (client_id:client_secret)",
+        "label": "Spotify",
         "env_var": "SPOTIFY_CLIENT_ID",
         "models": [],
     },

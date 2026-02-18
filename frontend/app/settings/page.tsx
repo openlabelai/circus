@@ -29,6 +29,7 @@ export default function SettingsPage() {
   // API Keys state
   const [keys, setKeys] = useState<ProviderKeyInfo[]>([]);
   const [keyInputs, setKeyInputs] = useState<Record<string, string>>({});
+  const [spotifySecret, setSpotifySecret] = useState("");
   const [keySaving, setKeySaving] = useState<string | null>(null);
 
   function loadAll() {
@@ -42,12 +43,17 @@ export default function SettingsPage() {
   // --- API Keys handlers ---
 
   async function handleSaveKey(provider: string) {
-    const value = keyInputs[provider];
+    let value = keyInputs[provider];
+    if (provider === "spotify") {
+      if (!value || !spotifySecret) return;
+      value = `${value}:${spotifySecret}`;
+    }
     if (!value) return;
     setKeySaving(provider);
     try {
       await setProviderKey(provider, value);
       setKeyInputs((prev) => ({ ...prev, [provider]: "" }));
+      if (provider === "spotify") setSpotifySecret("");
       // Refresh keys and providers to update has_key status
       const [newKeys, newProviders] = await Promise.all([
         getProviderKeys(),
@@ -150,7 +156,7 @@ export default function SettingsPage() {
                   />
                   <span className="w-40 text-sm font-medium">{k.label}</span>
 
-                  {k.has_key && !keyInputs[k.provider] ? (
+                  {k.has_key && !(k.provider in keyInputs) ? (
                     <div className="flex items-center gap-2 flex-1">
                       <span className="text-sm text-gray-500 font-mono">
                         {k.masked_key}
@@ -173,22 +179,48 @@ export default function SettingsPage() {
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 flex-1">
-                      <input
-                        type="password"
-                        placeholder={k.provider === "spotify" ? "client_id:client_secret" : "Enter API key..."}
-                        value={keyInputs[k.provider] || ""}
-                        onChange={(e) =>
-                          setKeyInputs((prev) => ({
-                            ...prev,
-                            [k.provider]: e.target.value,
-                          }))
-                        }
-                        className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono"
-                      />
+                      {k.provider === "spotify" ? (
+                        <>
+                          <input
+                            type="password"
+                            placeholder="Client ID"
+                            value={keyInputs[k.provider] || ""}
+                            onChange={(e) =>
+                              setKeyInputs((prev) => ({
+                                ...prev,
+                                [k.provider]: e.target.value,
+                              }))
+                            }
+                            className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono"
+                          />
+                          <input
+                            type="password"
+                            placeholder="Client Secret"
+                            value={spotifySecret}
+                            onChange={(e) => setSpotifySecret(e.target.value)}
+                            className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono"
+                          />
+                        </>
+                      ) : (
+                        <input
+                          type="password"
+                          placeholder="Enter API key..."
+                          value={keyInputs[k.provider] || ""}
+                          onChange={(e) =>
+                            setKeyInputs((prev) => ({
+                              ...prev,
+                              [k.provider]: e.target.value,
+                            }))
+                          }
+                          className="flex-1 bg-gray-800 border border-gray-700 rounded px-3 py-1.5 text-sm font-mono"
+                        />
+                      )}
                       <button
                         onClick={() => handleSaveKey(k.provider)}
                         disabled={
-                          keySaving === k.provider || !keyInputs[k.provider]
+                          keySaving === k.provider ||
+                          !keyInputs[k.provider] ||
+                          (k.provider === "spotify" && !spotifySecret)
                         }
                         className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded text-xs font-medium"
                       >
@@ -196,13 +228,14 @@ export default function SettingsPage() {
                       </button>
                       {k.has_key && (
                         <button
-                          onClick={() =>
+                          onClick={() => {
                             setKeyInputs((prev) => {
                               const next = { ...prev };
                               delete next[k.provider];
                               return next;
-                            })
-                          }
+                            });
+                            if (k.provider === "spotify") setSpotifySecret("");
+                          }}
                           className="text-xs text-gray-400 hover:text-gray-300"
                         >
                           Cancel
