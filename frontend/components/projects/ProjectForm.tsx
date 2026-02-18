@@ -16,9 +16,14 @@ const STATUS_OPTIONS = [
 const PLATFORM_OPTIONS = ["", "instagram", "tiktok", "spotify", "youtube", "twitter", "threads"];
 
 const GENRE_OPTIONS = [
-  "", "hip-hop", "indie-rock", "edm", "r&b", "latin", "k-pop", "pop", "country",
-  "jazz", "classical", "metal", "punk", "folk", "reggaeton", "afrobeats",
+  "", "afrobeats", "classical", "country", "cumbia", "edm", "folk", "hip-hop",
+  "indie-rock", "jazz", "k-pop", "latin", "latin-pop", "metal", "pop", "punk",
+  "r&b", "reggaeton",
 ];
+
+const LABEL_OVERRIDES: Record<string, string> = { "edm": "EDM", "r&b": "R&B", "k-pop": "K-Pop" };
+const capitalize = (s: string) =>
+  LABEL_OVERRIDES[s] || s.replace(/(^|[-& ])(\w)/g, (_, sep, c) => sep + c.toUpperCase());
 
 const STATUS_COLORS: Record<string, string> = {
   planning: "bg-gray-500/20 text-gray-400",
@@ -178,7 +183,7 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
                 <option value="">None</option>
                 {artistProfiles.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.artist_name}{p.genre ? ` (${p.genre})` : ""}
+                    {p.artist_name}{p.genre ? ` (${capitalize(p.genre)})` : ""}
                   </option>
                 ))}
               </select>
@@ -195,7 +200,7 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
           <Field label="Platform">
             <select className={selectClass} value={form.target_platform || ""} onChange={(e) => set("target_platform", e.target.value)}>
               {PLATFORM_OPTIONS.map((p) => (
-                <option key={p} value={p}>{p || "Select platform..."}</option>
+                <option key={p} value={p}>{p ? capitalize(p) : "Select platform..."}</option>
               ))}
             </select>
           </Field>
@@ -205,7 +210,7 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
           <Field label="Genre">
             <select className={selectClass} value={form.genre || ""} onChange={(e) => set("genre", e.target.value)}>
               {GENRE_OPTIONS.map((g) => (
-                <option key={g} value={g}>{g || "Select genre..."}</option>
+                <option key={g} value={g}>{g ? capitalize(g) : "Select genre..."}</option>
               ))}
             </select>
           </Field>

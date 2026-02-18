@@ -26,6 +26,10 @@ const GENRE_OPTIONS = [
   "r&b", "reggaeton",
 ];
 
+const LABEL_OVERRIDES: Record<string, string> = { "edm": "EDM", "r&b": "R&B", "k-pop": "K-Pop" };
+const capitalize = (s: string) =>
+  LABEL_OVERRIDES[s.toLowerCase()] || s.replace(/(^|[-& ])(\w)/g, (_, sep, c) => sep + c.toUpperCase());
+
 const COUNTRIES = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda",
   "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain",
@@ -508,7 +512,7 @@ export default function ArtistProfilesPage() {
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Genre *</label>
                 <select className={inputClass} value={form.genre} onChange={(e) => set("genre", e.target.value)}>
-                  {GENRE_OPTIONS.map((g) => <option key={g} value={g}>{g || "Select genre..."}</option>)}
+                  {GENRE_OPTIONS.map((g) => <option key={g} value={g}>{g ? capitalize(g) : "Select genre..."}</option>)}
                 </select>
               </div>
             </div>
@@ -600,7 +604,7 @@ export default function ArtistProfilesPage() {
                   <div className="flex items-center gap-3">
                     <span className="font-medium text-white">{profile.artist_name}</span>
                     {profile.genre && (
-                      <span className="px-2 py-0.5 bg-purple-900/50 border border-purple-700 rounded text-xs text-purple-300">{profile.genre}</span>
+                      <span className="px-2 py-0.5 bg-purple-900/50 border border-purple-700 rounded text-xs text-purple-300">{capitalize(profile.genre)}</span>
                     )}
                     {profile.country && (
                       <span className="px-2 py-0.5 bg-gray-800 border border-gray-700 rounded text-xs text-gray-400">{profile.country}</span>
@@ -767,7 +771,7 @@ export default function ArtistProfilesPage() {
                               <p className="text-xs text-gray-500 mb-1">Genres</p>
                               <div className="flex flex-wrap gap-1">
                                 {profile.api_data.spotify.genres.map((g: string) => (
-                                  <span key={g} className="px-2 py-0.5 bg-green-900/30 border border-green-800/50 rounded text-xs text-green-300">{g}</span>
+                                  <span key={g} className="px-2 py-0.5 bg-green-900/30 border border-green-800/50 rounded text-xs text-green-300">{capitalize(g)}</span>
                                 ))}
                               </div>
                             </div>
