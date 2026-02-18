@@ -66,7 +66,7 @@ def find_channel_id(artist_name: str, youtube_url: str = "") -> str:
         # Handle @handle URLs
         handle_match = re.search(r"youtube\.com/@([^/?]+)", youtube_url)
         if handle_match:
-            handle = handle_match.group(1)
+            handle = handle_match.group(1).lower()
             # Try exact handle first
             resp = requests.get(
                 "https://www.googleapis.com/youtube/v3/channels",
@@ -78,26 +78,43 @@ def find_channel_id(artist_name: str, youtube_url: str = "") -> str:
             if items:
                 return items[0]["id"]
 
-            # Handle not found — search using the handle as query
-            # (catches typos like "nadiramusica" vs "nadiramusic")
+            # Handle not found — search and verify customUrl matches
             resp = requests.get(
                 "https://www.googleapis.com/youtube/v3/search",
                 params={
                     "q": handle,
                     "type": "channel",
                     "part": "snippet",
-                    "maxResults": 5,
+                    "maxResults": 10,
                     "key": api_key,
                 },
                 timeout=10,
             )
             resp.raise_for_status()
-            items = resp.json().get("items", [])
-            for item in items:
-                if "- Topic" not in item["snippet"]["title"]:
-                    return item["id"]["channelId"]
-            if items:
-                return items[0]["id"]["channelId"]
+            candidates = resp.json().get("items", [])
+            # Filter out Topic channels
+            candidates = [c for c in candidates if "- Topic" not in c["snippet"]["title"]]
+            if candidates:
+                # Fetch channel details to verify customUrl matches the handle
+                candidate_ids = ",".join(c["id"]["channelId"] for c in candidates[:5])
+                resp = requests.get(
+                    "https://www.googleapis.com/youtube/v3/channels",
+                    params={"id": candidate_ids, "part": "snippet", "key": api_key},
+                    timeout=10,
+                )
+                resp.raise_for_status()
+                for ch in resp.json().get("items", []):
+                    custom_url = (ch.get("snippet", {}).get("customUrl") or "").lower().lstrip("@")
+                    # Match if handle starts with customUrl or vice versa
+                    # (catches typos like "nadiramusica" vs "nadiramusic")
+                    if custom_url and (
+                        handle.startswith(custom_url) or custom_url.startswith(handle)
+                    ):
+                        logger.info(f"Matched handle '{handle}' to channel @{custom_url} ({ch['id']})")
+                        return ch["id"]
+                # No customUrl match — use first non-Topic result
+                logger.warning(f"No exact handle match for '{handle}', using best search result")
+                return candidates[0]["id"]["channelId"]
 
     # Fall back to search — fetch multiple results and skip auto-generated "Topic" channels
     resp = requests.get(

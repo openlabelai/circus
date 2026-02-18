@@ -38,10 +38,16 @@ actions:
 - action: type
   text: "{task.instagram_handle}"
 - action: random_sleep
-  min: 2
-  max: 3
-- action: tap
-  text: "{task.instagram_handle}"
+  min: 3
+  max: 5
+# Use vision to tap the exact matching handle in search results
+- action: vision_tap
+  prompt: |
+    I see Instagram search results. Find the search result row that shows
+    the exact handle "{task.instagram_handle}" (shown as the username/handle text).
+    Do NOT tap on similar handles like nadira_ecuador or other partial matches.
+    Only tap the row with EXACTLY "{task.instagram_handle}" as the handle.
+    Return the coordinates of the center of that row.
 - action: random_sleep
   min: 3
   max: 5
