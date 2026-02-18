@@ -13,8 +13,9 @@ import {
 import type { ArtistProfile } from "@/lib/types";
 
 const GENRE_OPTIONS = [
-  "", "hip-hop", "indie-rock", "edm", "r&b", "latin", "k-pop", "pop", "country",
-  "jazz", "classical", "metal", "punk", "folk", "reggaeton", "afrobeats",
+  "", "afrobeats", "classical", "country", "cumbia", "edm", "folk", "hip-hop",
+  "indie-rock", "jazz", "k-pop", "latin", "latin-pop", "metal", "pop", "punk",
+  "r&b", "reggaeton",
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -142,6 +143,105 @@ function ProfileResults({ data }: { data: Record<string, any> }) {
   );
 }
 
+type CommentItem = { text: string; likes: number; source: string; video_title?: string };
+
+function CommentsTable({ comments }: { comments: CommentItem[] }) {
+  const [visible, setVisible] = useState(false);
+  const [filter, setFilter] = useState<"all" | "youtube" | "instagram">("all");
+  const [showAll, setShowAll] = useState(false);
+
+  const filtered = filter === "all" ? comments : comments.filter((c) => c.source === filter);
+  const sorted = [...filtered].sort((a, b) => (b.likes || 0) - (a.likes || 0));
+  const display = showAll ? sorted : sorted.slice(0, 50);
+
+  const ytCount = comments.filter((c) => c.source === "youtube").length;
+  const igCount = comments.filter((c) => c.source === "instagram").length;
+
+  if (comments.length === 0) return null;
+
+  return (
+    <div>
+      <button
+        onClick={() => setVisible(!visible)}
+        className="px-3 py-1.5 bg-cyan-600/80 hover:bg-cyan-600 rounded text-xs font-medium"
+      >
+        {visible ? "Hide Comments" : `Show Comments (${comments.length})`}
+      </button>
+
+      {visible && (
+        <div className="mt-3">
+          {/* Filter tabs */}
+          <div className="flex gap-1.5 mb-2">
+            <button
+              onClick={() => { setFilter("all"); setShowAll(false); }}
+              className={`px-2.5 py-1 rounded text-xs font-medium ${filter === "all" ? "bg-gray-600 text-white" : "bg-gray-800 text-gray-400 hover:text-gray-200"}`}
+            >
+              All ({comments.length})
+            </button>
+            {ytCount > 0 && (
+              <button
+                onClick={() => { setFilter("youtube"); setShowAll(false); }}
+                className={`px-2.5 py-1 rounded text-xs font-medium ${filter === "youtube" ? "bg-red-600/80 text-white" : "bg-gray-800 text-red-400 hover:text-red-300"}`}
+              >
+                YouTube ({ytCount})
+              </button>
+            )}
+            {igCount > 0 && (
+              <button
+                onClick={() => { setFilter("instagram"); setShowAll(false); }}
+                className={`px-2.5 py-1 rounded text-xs font-medium ${filter === "instagram" ? "bg-pink-600/80 text-white" : "bg-gray-800 text-pink-400 hover:text-pink-300"}`}
+              >
+                Instagram ({igCount})
+              </button>
+            )}
+          </div>
+
+          {/* Table */}
+          <div className="max-h-96 overflow-y-auto border border-gray-700 rounded">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-800 sticky top-0">
+                <tr>
+                  <th className="text-left px-3 py-2 text-gray-400 font-medium w-20">Source</th>
+                  <th className="text-left px-3 py-2 text-gray-400 font-medium">Comment</th>
+                  <th className="text-right px-3 py-2 text-gray-400 font-medium w-16">Likes</th>
+                  <th className="text-left px-3 py-2 text-gray-400 font-medium w-48">Video</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-800">
+                {display.map((c, i) => (
+                  <tr key={i} className="hover:bg-gray-800/40">
+                    <td className="px-3 py-1.5">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        c.source === "youtube"
+                          ? "bg-red-900/50 text-red-300 border border-red-800"
+                          : "bg-pink-900/50 text-pink-300 border border-pink-800"
+                      }`}>
+                        {c.source === "youtube" ? "YT" : "IG"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5 text-gray-300 font-mono max-w-md truncate">{c.text}</td>
+                    <td className="px-3 py-1.5 text-right text-gray-400 tabular-nums">{c.likes || 0}</td>
+                    <td className="px-3 py-1.5 text-gray-500 truncate">{c.video_title || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {!showAll && sorted.length > 50 && (
+            <button
+              onClick={() => setShowAll(true)}
+              className="mt-2 text-xs text-cyan-400 hover:text-cyan-300"
+            >
+              Show all {sorted.length} comments
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface FormState {
   artist_name: string;
   spotify_url: string;
@@ -153,6 +253,7 @@ interface FormState {
   tiktok_handle: string;
   twitter_handle: string;
   description: string;
+  profile_image_url: string;
 }
 
 const emptyForm: FormState = {
@@ -166,6 +267,7 @@ const emptyForm: FormState = {
   tiktok_handle: "",
   twitter_handle: "",
   description: "",
+  profile_image_url: "",
 };
 
 export default function ArtistProfilesPage() {
@@ -207,6 +309,7 @@ export default function ArtistProfilesPage() {
       tiktok_handle: profile.tiktok_handle,
       twitter_handle: profile.twitter_handle,
       description: profile.description,
+      profile_image_url: profile.profile_image_url || "",
     });
     setEditingId(profile.id);
     setShowForm(true);
@@ -346,6 +449,10 @@ export default function ArtistProfilesPage() {
                 <input className={inputClass} value={form.twitter_handle} onChange={(e) => set("twitter_handle", e.target.value)} placeholder="@handle" />
               </div>
             </div>
+            <div className="mt-3">
+              <label className="block text-xs text-gray-500 mb-1">Profile Image URL</label>
+              <input className={inputClass} value={form.profile_image_url} onChange={(e) => set("profile_image_url", e.target.value)} placeholder="https://... (auto-fetched from YouTube, or enter manually)" />
+            </div>
           </div>
 
           {/* Additional Context */}
@@ -394,6 +501,19 @@ export default function ArtistProfilesPage() {
                 className="flex items-center gap-4 p-4 cursor-pointer hover:bg-gray-800/30"
                 onClick={() => setExpandedId(isExpanded ? null : profile.id)}
               >
+                {profile.profile_image_url ? (
+                  <img
+                    src={profile.profile_image_url}
+                    alt={profile.artist_name}
+                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-semibold text-gray-400">
+                      {profile.artist_name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3">
                     <span className="font-medium text-white">{profile.artist_name}</span>
@@ -476,6 +596,9 @@ export default function ArtistProfilesPage() {
                         {profile.api_data.genius && <span className="px-2 py-0.5 bg-yellow-900/30 border border-yellow-800 rounded text-xs text-yellow-300">Genius</span>}
                         {profile.api_data.youtube && <span className="px-2 py-0.5 bg-red-900/30 border border-red-800 rounded text-xs text-red-300">YouTube</span>}
                       </div>
+                    )}
+                    {totalComments > 0 && (
+                      <CommentsTable comments={profile.scraped_comments || []} />
                     )}
                   </div>
 

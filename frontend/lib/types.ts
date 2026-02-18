@@ -21,6 +21,7 @@ export interface ArtistProfile {
   api_data: Record<string, any>;
   scraping_status: "idle" | "scraping" | "done" | "failed";
   last_scraped_at: string | null;
+  profile_image_url: string;
 
   status: "pending" | "researching" | "completed" | "failed";
   error_message: string;

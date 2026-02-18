@@ -46,6 +46,7 @@ class ArtistProfile(models.Model):
         default="idle",
     )
     last_scraped_at = models.DateTimeField(null=True, blank=True)
+    profile_image_url = models.URLField(max_length=500, blank=True, default="")
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     error_message = models.TextField(blank=True, default="")

@@ -133,6 +133,17 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
                 profile.api_data = api_data
                 profile.scraping_status = "done"
                 profile.last_scraped_at = timezone.now()
+
+                # Auto-fetch channel thumbnail if not already set
+                if not profile.profile_image_url and result.get("channel_id"):
+                    try:
+                        from circus.research.youtube import fetch_channel_thumbnail
+                        thumb_url = fetch_channel_thumbnail(result["channel_id"])
+                        if thumb_url:
+                            profile.profile_image_url = thumb_url
+                    except Exception:
+                        pass  # Non-fatal
+
                 profile.save()
             except Exception as e:
                 profile.scraping_status = "failed"

@@ -27,6 +27,25 @@ def _get_api_key() -> str:
     return key
 
 
+def fetch_channel_thumbnail(channel_id: str) -> str:
+    """Fetch the channel profile thumbnail URL from the YouTube API."""
+    api_key = _get_api_key()
+    resp = requests.get(
+        "https://www.googleapis.com/youtube/v3/channels",
+        params={"id": channel_id, "part": "snippet", "key": api_key},
+        timeout=10,
+    )
+    resp.raise_for_status()
+    items = resp.json().get("items", [])
+    if not items:
+        return ""
+    thumbnails = items[0].get("snippet", {}).get("thumbnails", {})
+    for size in ("high", "medium", "default"):
+        if size in thumbnails:
+            return thumbnails[size].get("url", "")
+    return ""
+
+
 def find_channel_id(artist_name: str, youtube_url: str = "") -> str:
     """Find YouTube channel ID from URL or search.
 
