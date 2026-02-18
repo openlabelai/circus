@@ -13,6 +13,13 @@ import {
 } from "@/lib/api";
 import type { ArtistProfile } from "@/lib/types";
 
+function formatNumber(n: number): string {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
 const GENRE_OPTIONS = [
   "", "afrobeats", "classical", "country", "cumbia", "edm", "folk", "hip-hop",
   "indie-rock", "jazz", "k-pop", "latin", "latin-pop", "metal", "pop", "punk",
@@ -708,21 +715,137 @@ export default function ArtistProfilesPage() {
                   </div>
 
                   {/* Data Summary */}
-                  {(totalComments > 0 || hasApiData) && (
-                    <div className="bg-gray-800/30 border border-gray-700/50 rounded p-3 mb-4 text-xs text-gray-400 space-y-1">
-                      {ytComments > 0 && <p>{ytComments} YouTube comments</p>}
-                      {igComments > 0 && <p>{igComments} Instagram comments</p>}
-                      {profile.api_data?.lastfm?.similar_artists && (
-                        <p>Similar artists: {profile.api_data.lastfm.similar_artists.length} from Last.fm</p>
-                      )}
-                      {profile.api_data?.spotify?.genres?.length > 0 && (
-                        <p>Genres: {profile.api_data.spotify.genres.join(", ")}</p>
-                      )}
-                      {profile.api_data?.lastfm?.tags?.length > 0 && (
-                        <p>Tags: {profile.api_data.lastfm.tags.slice(0, 8).join(", ")}</p>
-                      )}
+                  {/* Scraping stats */}
+                  {(totalComments > 0 || profile.last_scraped_at) && (
+                    <div className="flex gap-4 mb-3 text-xs text-gray-400">
+                      {ytComments > 0 && <span>{ytComments} YouTube comments</span>}
+                      {igComments > 0 && <span>{igComments} Instagram comments</span>}
                       {profile.last_scraped_at && (
-                        <p>Last scraped: {new Date(profile.last_scraped_at).toLocaleString()}</p>
+                        <span>Last scraped: {new Date(profile.last_scraped_at).toLocaleString()}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Enrichment data panels */}
+                  {hasApiData && (
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      {/* Spotify panel */}
+                      {profile.api_data?.spotify && (
+                        <div className="bg-gray-800/40 border border-gray-700/50 rounded-lg p-4">
+                          <h5 className="text-xs font-semibold text-green-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-green-400" />
+                            Spotify
+                          </h5>
+
+                          {/* Popularity + Followers */}
+                          <div className="flex items-center gap-4 mb-3">
+                            {profile.api_data.spotify.popularity != null && (
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                                  <span>Popularity</span>
+                                  <span className="text-white font-medium">{profile.api_data.spotify.popularity}/100</span>
+                                </div>
+                                <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-green-500"
+                                    style={{ width: `${profile.api_data.spotify.popularity}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            {profile.api_data.spotify.followers > 0 && (
+                              <div className="text-right">
+                                <p className="text-lg font-bold text-white leading-none">{formatNumber(profile.api_data.spotify.followers)}</p>
+                                <p className="text-xs text-gray-500">followers</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Genres */}
+                          {profile.api_data.spotify.genres?.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-xs text-gray-500 mb-1">Genres</p>
+                              <div className="flex flex-wrap gap-1">
+                                {profile.api_data.spotify.genres.map((g: string) => (
+                                  <span key={g} className="px-2 py-0.5 bg-green-900/30 border border-green-800/50 rounded text-xs text-green-300">{g}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Recent releases */}
+                          {profile.api_data.spotify.albums?.length > 0 && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Recent releases</p>
+                              <div className="space-y-1">
+                                {profile.api_data.spotify.albums.slice(0, 5).map((a: any, i: number) => (
+                                  <div key={i} className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-300 truncate mr-2">{a.name}</span>
+                                    <span className="text-gray-500 flex-shrink-0">{a.release_date?.slice(0, 4)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Last.fm panel */}
+                      {profile.api_data?.lastfm && (
+                        <div className="bg-gray-800/40 border border-gray-700/50 rounded-lg p-4">
+                          <h5 className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-red-400" />
+                            Last.fm
+                            {profile.api_data.lastfm.listeners && (
+                              <span className="font-normal text-gray-500 ml-auto">{formatNumber(Number(profile.api_data.lastfm.listeners))} listeners</span>
+                            )}
+                          </h5>
+
+                          {/* Similar artists */}
+                          {profile.api_data.lastfm.similar_artists?.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-xs text-gray-500 mb-1">Similar artists</p>
+                              <div className="flex flex-wrap gap-1">
+                                {profile.api_data.lastfm.similar_artists.slice(0, 8).map((a: any) => (
+                                  <span
+                                    key={a.name}
+                                    title={`${Math.round(a.match * 100)}% match`}
+                                    className="px-2 py-0.5 bg-red-900/30 border border-red-800/50 rounded text-xs text-red-300"
+                                  >
+                                    {a.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tags */}
+                          {profile.api_data.lastfm.tags?.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-xs text-gray-500 mb-1">Tags</p>
+                              <div className="flex flex-wrap gap-1">
+                                {profile.api_data.lastfm.tags.slice(0, 10).map((t: string) => (
+                                  <span key={t} className="px-2 py-0.5 bg-gray-700/50 border border-gray-600/50 rounded text-xs text-gray-400">{t}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Top tracks */}
+                          {profile.api_data.lastfm.top_tracks?.length > 0 && (
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Top tracks</p>
+                              <div className="space-y-1">
+                                {profile.api_data.lastfm.top_tracks.slice(0, 5).map((t: any, i: number) => (
+                                  <div key={i} className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-300 truncate mr-2">{t.name}</span>
+                                    <span className="text-gray-500 flex-shrink-0">{formatNumber(Number(t.playcount))} plays</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
