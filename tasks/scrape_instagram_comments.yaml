@@ -4,12 +4,18 @@ target_package: com.instagram.android
 timeout: 600.0
 retry_count: 0
 actions:
+# Force-restart Instagram so deep link navigates cleanly
+- action: app_stop
+  package: com.instagram.android
+- action: random_sleep
+  min: 1
+  max: 2
 # Navigate directly to the profile via deep link — avoids search entirely
 - action: open_url
   url: "https://www.instagram.com/{task.instagram_handle}/"
 - action: random_sleep
-  min: 4
-  max: 6
+  min: 5
+  max: 7
 
 # Dismiss any popups
 - action: if
