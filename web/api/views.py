@@ -1,5 +1,8 @@
+import logging
 import random
 from datetime import date
+
+logger = logging.getLogger(__name__)
 
 from django.conf import settings
 from django.db.models import Max
@@ -208,16 +211,21 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
                 # Extract comments from extraction_data
                 extraction_data = result_data.get("extraction_data", [])
                 ig_comments = []
+                seen_texts: set[str] = set()
                 for item in extraction_data:
                     if not isinstance(item, dict):
                         continue
-                    # Handle both "comments" key (from vision/extract_elements)
+                    # Handle both "comments" key (from vision)
                     # and "texts" key (default from extract_elements)
                     comment_list = item.get("comments") or item.get("texts") or []
                     for comment_text in comment_list:
                         if isinstance(comment_text, str) and comment_text.strip():
+                            normalized = comment_text.strip()
+                            if normalized in seen_texts:
+                                continue
+                            seen_texts.add(normalized)
                             ig_comments.append({
-                                "text": comment_text.strip(),
+                                "text": normalized,
                                 "likes": 0,
                                 "source": "instagram",
                             })
