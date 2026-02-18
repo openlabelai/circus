@@ -7,6 +7,9 @@ from api.models import (
 
 
 class ArtistProfileSerializer(serializers.ModelSerializer):
+    youtube_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
+    spotify_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
+
     class Meta:
         model = ArtistProfile
         fields = "__all__"
