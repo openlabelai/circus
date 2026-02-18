@@ -28,131 +28,199 @@ actions:
     min: 1
     max: 2
 
-# Navigate to profile via search — deep links are unreliable across devices
-# Step 1: Tap the Search/Explore tab
-- action: tap
-  description: Search and explore
-  timeout: 10
-- action: random_sleep
-  min: 2
-  max: 3
-
-# Step 2: Tap the search input bar at the top
-- action: tap
-  text: Search
-  timeout: 5
-- action: random_sleep
-  min: 1
-  max: 2
-
-# Step 3: Type the Instagram handle
-- action: type
-  text: "{task.instagram_handle}"
-- action: random_sleep
-  min: 2
-  max: 3
-
-# Step 4: Tap "Accounts" tab if visible (full search results page)
-- action: if
-  condition:
-    element_exists:
-      text: Accounts
-  then:
+# Open exact profile via Instagram deep-link; fallback to strict search flow
+- action: try
+  actions:
+  - action: open_url
+    url: "instagram://user?username={task.instagram_handle}"
+    package: com.instagram.android
+  - action: random_sleep
+    min: 2
+    max: 3
+  - action: assert
+    condition:
+      screen_is: instagram_profile
+    timeout: 8
+    message: "Deep-link did not open a profile screen"
+  - action: assert
+    condition:
+      element_exists:
+        resourceId: com.instagram.android:id/action_bar_title
+        text: "{task.instagram_handle}"
+    timeout: 8
+    message: "Deep-link opened wrong profile"
+  on_error:
   - action: tap
-    text: Accounts
+    description: Search and explore
+    timeout: 10
+  - action: random_sleep
+    min: 2
+    max: 3
+  - action: tap
+    text: Search
+    timeout: 5
+  - action: random_sleep
+    min: 1
+    max: 2
+  - action: try
+    actions:
+    - action: clear
+      resource_id: com.instagram.android:id/action_bar_search_edit_text
+    on_error: []
+  - action: type
+    into_by: resourceId
+    into: com.instagram.android:id/action_bar_search_edit_text
+    text: "{task.instagram_handle}"
+  - action: random_sleep
+    min: 2
+    max: 3
+  - action: if
+    condition:
+      element_exists:
+        text: Accounts
+    then:
+    - action: tap
+      text: Accounts
+    - action: random_sleep
+      min: 1
+      max: 2
+  - action: tap
+    text: "{task.instagram_handle}"
+    index: 1
+    timeout: 10
+  - action: random_sleep
+    min: 1.5
+    max: 2.5
+  - action: try
+    actions:
+    - action: assert
+      condition:
+        screen_is: instagram_profile
+      timeout: 8
+      message: "Fallback did not open a profile screen"
+    - action: assert
+      condition:
+        element_exists:
+          resourceId: com.instagram.android:id/action_bar_title
+          text: "{task.instagram_handle}"
+      timeout: 8
+      message: "Fallback opened wrong profile"
+    on_error:
+    - action: try
+      actions:
+      - action: press
+        key: back
+      on_error: []
+    - action: random_sleep
+      min: 1
+      max: 2
+    - action: tap
+      text: "{task.instagram_handle}"
+      index: 2
+      timeout: 10
+    - action: random_sleep
+      min: 1.5
+      max: 2.5
+    - action: assert
+      condition:
+        screen_is: instagram_profile
+      timeout: 8
+      message: "Fallback retry did not open a profile screen"
+    - action: assert
+      condition:
+        element_exists:
+          resourceId: com.instagram.android:id/action_bar_title
+          text: "{task.instagram_handle}"
+      timeout: 8
+      message: "Fallback retry opened wrong profile"
+
+# Tap first post from profile grid using stable resource IDs
+- action: try
+  actions:
+  - action: tap
+    resource_id: com.instagram.android:id/image_button
+    index: 0
+    timeout: 8
+  on_error:
+  - action: tap
+    resource_id: com.instagram.android:id/grid_card_layout_container
+    index: 0
+    timeout: 8
+- action: random_sleep
+  min: 2
+  max: 3
+- action: try
+  actions:
+  - action: assert
+    condition:
+      screen_not: instagram_profile
+    timeout: 6
+    message: "Did not land in post view after first grid tap"
+  on_error:
+  - action: try
+    actions:
+    - action: press
+      key: back
+    on_error: []
+  - action: random_sleep
+    min: 1
+    max: 2
+  - action: try
+    actions:
+    - action: tap
+      resource_id: com.instagram.android:id/image_button
+      index: 0
+      timeout: 8
+    on_error:
+    - action: tap
+      resource_id: com.instagram.android:id/grid_card_layout_container
+      index: 0
+      timeout: 8
+  - action: random_sleep
+    min: 2
+    max: 3
+  - action: assert
+    condition:
+      screen_not: instagram_profile
+    timeout: 8
+    message: "Retry did not land in post view"
+
+# For N posts: open comments, extract up to 10 comments, return to post, go to next post
+- action: repeat
+  count: "{task.post_count}"
+  actions:
+  # Open comment drawer
+  - action: vision_tap
+    prompt: |
+      You are on an Instagram post screen.
+      Tap the comment icon (speech bubble) on the right-side action rail.
+      Do not tap like, share, save, or profile elements.
+  - action: random_sleep
+    min: 2
+    max: 3
+
+  # Collect up to 10 comments for this post
+  - action: vision
+    prompt: |
+      Extract up to 10 comment texts from this Instagram comments screen.
+      Return STRICT JSON only: {"comments": ["c1","c2",...]}
+      Rules:
+      - Maximum 10 comments
+      - Only comment text (no usernames, timestamps, likes, translation labels)
+      - Remove duplicates
+      - If fewer than 10 are visible, return as many as visible
   - action: random_sleep
     min: 1
     max: 2
 
-# Step 5: Tap the search result — use index 1 to skip the search bar text match
-- action: tap
-  text: "{task.instagram_handle}"
-  index: 1
-  timeout: 10
-- action: random_sleep
-  min: 3
-  max: 5
-
-# Verify we landed on a profile page — wait for post count header
-- action: try
-  actions:
-  - action: wait
-    resource_id: com.instagram.android:id/row_profile_header_textview_post_count
-    timeout: 10
-  on_error:
+  # Return to post
+  - action: press
+    key: back
   - action: random_sleep
-    min: 3
-    max: 5
+    min: 1
+    max: 2
 
-# Tap first post in grid using vision (coordinate-based)
-- action: vision_tap
-  prompt: |
-    I see an Instagram profile page. Below the bio/stats section there is a grid of photo/video posts arranged in 3 columns.
-    I need to tap the FIRST post (top-left thumbnail in the grid).
-    Return the coordinates of the center of that first thumbnail image.
-- action: random_sleep
-  min: 2
-  max: 3
-
-# For N posts: open comments, extract, scroll to next post
-- action: repeat
-  count: "{task.post_count}"
-  actions:
-  - action: try
-    actions:
-    # Tap the comment button to open full comment view
-    - action: tap
-      resource_id: com.instagram.android:id/row_feed_button_comment
-      timeout: 5
-    - action: random_sleep
-      min: 2
-      max: 3
-    # Extract comments from the comment thread via UI hierarchy
-    - action: extract_elements
-      resource_id: com.instagram.android:id/row_comment_textview_comment
-      key: comments
-    - action: random_sleep
-      min: 1
-      max: 2
-    # Scroll down for more comments
-    - action: swipe
-      direction: up
-    - action: random_sleep
-      min: 1
-      max: 2
-    # Extract more comments after scrolling
-    - action: extract_elements
-      resource_id: com.instagram.android:id/row_comment_textview_comment
-      key: comments
-    - action: random_sleep
-      min: 1
-      max: 2
-    # Scroll down once more
-    - action: swipe
-      direction: up
-    - action: random_sleep
-      min: 1
-      max: 2
-    # Extract third batch
-    - action: extract_elements
-      resource_id: com.instagram.android:id/row_comment_textview_comment
-      key: comments
-    # Go back to post view
-    - action: press
-      key: back
-    - action: random_sleep
-      min: 1
-      max: 2
-    on_error:
-    # If comment button not found, try vision extraction as fallback
-    - action: vision
-      prompt: |
-        Extract all visible Instagram comment text from this screen.
-        Return JSON: {"comments": ["comment1", "comment2", ...]}
-        Only the comment text — no usernames, timestamps, or like counts.
-        If no comments are visible, return {"comments": []}
-      extract: true
-  # Swipe to next post in feed
+  # Move to next post in the profile post viewer
   - action: swipe
     direction: up
   - action: random_sleep

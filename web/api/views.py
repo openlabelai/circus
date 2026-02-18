@@ -38,6 +38,11 @@ def _project_filter(request):
     return {}
 
 
+def _normalize_instagram_handle(handle: str) -> str:
+    """Normalize input to a plain username suitable for IG search."""
+    return (handle or "").strip().lstrip("@")
+
+
 class ArtistProfileViewSet(viewsets.ModelViewSet):
     queryset = ArtistProfile.objects.all()
     serializer_class = ArtistProfileSerializer
@@ -102,9 +107,9 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
         # Scraping intensity levels — spread across more videos, max 10 comments each
         intensity = request.data.get("intensity", "mid")
         intensity_map = {
-            "soft": {"num_videos": 5,  "comments_per_video": 10, "ig_posts": 3},
-            "mid":  {"num_videos": 10, "comments_per_video": 10, "ig_posts": 5},
-            "hard": {"num_videos": 15, "comments_per_video": 10, "ig_posts": 8},
+            "soft": {"num_videos": 5,  "comments_per_video": 10, "ig_posts": 2},
+            "mid":  {"num_videos": 10, "comments_per_video": 10, "ig_posts": 3},
+            "hard": {"num_videos": 15, "comments_per_video": 10, "ig_posts": 5},
         }
         scrape_cfg = intensity_map.get(intensity, intensity_map["mid"])
 
@@ -167,6 +172,16 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
                 )
 
             device_serial = request.data.get("device_serial")
+            ig_handle = _normalize_instagram_handle(profile.instagram_handle)
+            if not ig_handle:
+                return Response(
+                    {"error": "Instagram handle required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Ensure DB task stays in sync with latest YAML before execution.
+            from api.sync import import_tasks_from_yaml
+            import_tasks_from_yaml(settings.CIRCUS_TASK_DIR)
 
             # Find the scrape task
             scrape_task = Task.objects.filter(name="scrape_instagram_comments").first()
@@ -185,7 +200,7 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
                     scrape_task,
                     serial=device_serial,
                     variables={
-                        "instagram_handle": profile.instagram_handle,
+                        "instagram_handle": ig_handle,
                         "post_count": str(scrape_cfg["ig_posts"]),
                     },
                 )
