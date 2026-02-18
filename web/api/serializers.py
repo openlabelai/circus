@@ -14,6 +14,7 @@ class ArtistProfileSerializer(serializers.ModelSerializer):
             "id", "profile_data", "raw_profile_text",
             "status", "error_message", "created_at", "updated_at",
             "scraped_comments", "api_data", "scraping_status", "last_scraped_at",
+            "profile_image_url",
         ]
 
     def validate_artist_name(self, value):

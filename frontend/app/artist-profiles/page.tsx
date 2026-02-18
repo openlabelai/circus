@@ -253,7 +253,6 @@ interface FormState {
   tiktok_handle: string;
   twitter_handle: string;
   description: string;
-  profile_image_url: string;
 }
 
 const emptyForm: FormState = {
@@ -267,7 +266,6 @@ const emptyForm: FormState = {
   tiktok_handle: "",
   twitter_handle: "",
   description: "",
-  profile_image_url: "",
 };
 
 export default function ArtistProfilesPage() {
@@ -309,7 +307,6 @@ export default function ArtistProfilesPage() {
       tiktok_handle: profile.tiktok_handle,
       twitter_handle: profile.twitter_handle,
       description: profile.description,
-      profile_image_url: profile.profile_image_url || "",
     });
     setEditingId(profile.id);
     setShowForm(true);
@@ -448,10 +445,6 @@ export default function ArtistProfilesPage() {
                 <label className="block text-xs text-gray-500 mb-1">Twitter / X</label>
                 <input className={inputClass} value={form.twitter_handle} onChange={(e) => set("twitter_handle", e.target.value)} placeholder="@handle" />
               </div>
-            </div>
-            <div className="mt-3">
-              <label className="block text-xs text-gray-500 mb-1">Profile Image URL</label>
-              <input className={inputClass} value={form.profile_image_url} onChange={(e) => set("profile_image_url", e.target.value)} placeholder="https://... (auto-fetched from YouTube, or enter manually)" />
             </div>
           </div>
 
