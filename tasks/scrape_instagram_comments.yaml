@@ -1,7 +1,7 @@
 name: scrape_instagram_comments
 description: Open Instagram, navigate to an artist's profile, and extract comments from recent posts
 target_package: com.instagram.android
-timeout: 600.0
+timeout: 900.0
 retry_count: 0
 actions:
 # Force-restart Instagram so we start clean

@@ -240,30 +240,42 @@ def fetch_video_comments(video_id: str, video_title: str = "", max_comments: int
 def fetch_artist_comments(
     artist_name: str,
     youtube_url: str = "",
-    num_videos: int = 10,
-    comments_per_video: int = 500,
+    max_videos: int = 20,
+    target_comments: int = 250,
 ) -> dict:
-    """Orchestrator: find channel, get videos, fetch comments from each.
+    """Orchestrator: find channel, get videos, fetch comments until target met.
+
+    Keeps fetching from successive videos until target_comments is reached
+    or all available videos (up to max_videos) have been scraped.
 
     Returns: {"comments": [...], "videos_scraped": N, "total_comments": N, "channel_id": str}
     """
     channel_id = find_channel_id(artist_name, youtube_url)
-    videos = get_recent_video_ids(channel_id, limit=num_videos)
+    videos = get_recent_video_ids(channel_id, limit=max_videos)
 
     all_comments = []
     videos_scraped = 0
 
     for video in videos:
+        if len(all_comments) >= target_comments:
+            logger.info(f"Reached target of {target_comments} comments after {videos_scraped} videos")
+            break
+
+        remaining = target_comments - len(all_comments)
+        # Fetch up to remaining needed, but at least 50 per video for variety
+        per_video = max(50, remaining)
+
         try:
             comments = fetch_video_comments(
                 video["video_id"],
                 video_title=video["title"],
-                max_comments=comments_per_video,
+                max_comments=per_video,
             )
             all_comments.extend(comments)
             videos_scraped += 1
             logger.info(
-                f"Fetched {len(comments)} comments from '{video['title']}'"
+                f"Fetched {len(comments)} comments from '{video['title']}' "
+                f"(total: {len(all_comments)}/{target_comments})"
             )
         except Exception as e:
             logger.warning(f"Failed to fetch comments for video {video['video_id']}: {e}")

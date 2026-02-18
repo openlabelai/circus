@@ -107,12 +107,12 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
         profile = self.get_object()
         source = request.data.get("source", "youtube")
 
-        # Scraping intensity levels — spread across more videos, max 10 comments each
+        # Scraping intensity levels — target total comments, keep going until met
         intensity = request.data.get("intensity", "mid")
         intensity_map = {
-            "soft": {"num_videos": 5,  "comments_per_video": 10, "ig_posts": 2},
-            "mid":  {"num_videos": 10, "comments_per_video": 10, "ig_posts": 3},
-            "hard": {"num_videos": 15, "comments_per_video": 10, "ig_posts": 5},
+            "soft": {"target_comments": 100,  "max_videos": 10,  "ig_posts": 5},
+            "mid":  {"target_comments": 250,  "max_videos": 20,  "ig_posts": 8},
+            "hard": {"target_comments": 500,  "max_videos": 40,  "ig_posts": 12},
         }
         scrape_cfg = intensity_map.get(intensity, intensity_map["mid"])
 
@@ -131,8 +131,8 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
                 result = fetch_artist_comments(
                     artist_name=profile.artist_name,
                     youtube_url=profile.youtube_url,
-                    num_videos=scrape_cfg["num_videos"],
-                    comments_per_video=scrape_cfg["comments_per_video"],
+                    max_videos=scrape_cfg["max_videos"],
+                    target_comments=scrape_cfg["target_comments"],
                 )
                 # Append to existing comments
                 existing = profile.scraped_comments or []

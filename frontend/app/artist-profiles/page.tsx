@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getArtistProfiles,
   createArtistProfile,
@@ -17,6 +17,40 @@ const GENRE_OPTIONS = [
   "", "afrobeats", "classical", "country", "cumbia", "edm", "folk", "hip-hop",
   "indie-rock", "jazz", "k-pop", "latin", "latin-pop", "metal", "pop", "punk",
   "r&b", "reggaeton",
+];
+
+const COUNTRIES = [
+  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua and Barbuda",
+  "Argentina", "Armenia", "Australia", "Austria", "Azerbaijan", "Bahamas", "Bahrain",
+  "Bangladesh", "Barbados", "Belarus", "Belgium", "Belize", "Benin", "Bhutan",
+  "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei", "Bulgaria",
+  "Burkina Faso", "Burundi", "Cabo Verde", "Cambodia", "Cameroon", "Canada",
+  "Central African Republic", "Chad", "Chile", "China", "Colombia", "Comoros",
+  "Congo", "Costa Rica", "Croatia", "Cuba", "Cyprus", "Czech Republic",
+  "Denmark", "Djibouti", "Dominica", "Dominican Republic", "Ecuador", "Egypt",
+  "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia", "Eswatini", "Ethiopia",
+  "Fiji", "Finland", "France", "Gabon", "Gambia", "Georgia", "Germany", "Ghana",
+  "Greece", "Grenada", "Guatemala", "Guinea", "Guinea-Bissau", "Guyana", "Haiti",
+  "Honduras", "Hungary", "Iceland", "India", "Indonesia", "Iran", "Iraq", "Ireland",
+  "Israel", "Italy", "Jamaica", "Japan", "Jordan", "Kazakhstan", "Kenya", "Kiribati",
+  "Kosovo", "Kuwait", "Kyrgyzstan", "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia",
+  "Libya", "Liechtenstein", "Lithuania", "Luxembourg", "Madagascar", "Malawi",
+  "Malaysia", "Maldives", "Mali", "Malta", "Marshall Islands", "Mauritania",
+  "Mauritius", "Mexico", "Micronesia", "Moldova", "Monaco", "Mongolia", "Montenegro",
+  "Morocco", "Mozambique", "Myanmar", "Namibia", "Nauru", "Nepal", "Netherlands",
+  "New Zealand", "Nicaragua", "Niger", "Nigeria", "North Korea", "North Macedonia",
+  "Norway", "Oman", "Pakistan", "Palau", "Palestine", "Panama", "Papua New Guinea",
+  "Paraguay", "Peru", "Philippines", "Poland", "Portugal", "Puerto Rico", "Qatar",
+  "Romania", "Russia", "Rwanda", "Saint Kitts and Nevis", "Saint Lucia",
+  "Saint Vincent and the Grenadines", "Samoa", "San Marino", "Sao Tome and Principe",
+  "Saudi Arabia", "Senegal", "Serbia", "Seychelles", "Sierra Leone", "Singapore",
+  "Slovakia", "Slovenia", "Solomon Islands", "Somalia", "South Africa", "South Korea",
+  "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname", "Sweden", "Switzerland",
+  "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand", "Timor-Leste", "Togo",
+  "Tonga", "Trinidad and Tobago", "Tunisia", "Turkey", "Turkmenistan", "Tuvalu",
+  "Uganda", "Ukraine", "United Arab Emirates", "United Kingdom", "United States",
+  "Uruguay", "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela", "Vietnam",
+  "Yemen", "Zambia", "Zimbabwe",
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -247,7 +281,6 @@ interface FormState {
   artist_name: string;
   spotify_url: string;
   country: string;
-  city: string;
   genre: string;
   instagram_handle: string;
   youtube_url: string;
@@ -260,7 +293,6 @@ const emptyForm: FormState = {
   artist_name: "",
   spotify_url: "",
   country: "",
-  city: "",
   genre: "",
   instagram_handle: "",
   youtube_url: "",
@@ -268,6 +300,49 @@ const emptyForm: FormState = {
   twitter_handle: "",
   description: "",
 };
+
+function CountryCombobox({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  const filtered = query
+    ? COUNTRIES.filter((c) => c.toLowerCase().includes(query.toLowerCase()))
+    : COUNTRIES;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        className={className}
+        value={open ? query : value}
+        placeholder="Search country..."
+        onFocus={() => { setOpen(true); setQuery(value); }}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+      />
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded border border-gray-700 bg-gray-900 text-sm shadow-lg">
+          {filtered.map((c) => (
+            <li
+              key={c}
+              className={`cursor-pointer px-3 py-1.5 hover:bg-gray-700 ${c === value ? "bg-gray-800 text-white" : "text-gray-300"}`}
+              onMouseDown={() => { onChange(c); setQuery(c); setOpen(false); }}
+            >
+              {c}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default function ArtistProfilesPage() {
   const [profiles, setProfiles] = useState<ArtistProfile[]>([]);
@@ -301,7 +376,6 @@ export default function ArtistProfilesPage() {
       artist_name: profile.artist_name,
       spotify_url: profile.spotify_url,
       country: profile.country,
-      city: profile.city,
       genre: profile.genre,
       instagram_handle: profile.instagram_handle,
       youtube_url: profile.youtube_url,
@@ -422,24 +496,13 @@ export default function ArtistProfilesPage() {
               </div>
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Country *</label>
-                <input className={inputClass} value={form.country} onChange={(e) => set("country", e.target.value)} placeholder="e.g. Indonesia" />
+                <CountryCombobox className={inputClass} value={form.country} onChange={(v) => set("country", v)} />
               </div>
               <div>
                 <label className="block text-xs text-gray-400 mb-1">Genre *</label>
                 <select className={inputClass} value={form.genre} onChange={(e) => set("genre", e.target.value)}>
                   {GENRE_OPTIONS.map((g) => <option key={g} value={g}>{g || "Select genre..."}</option>)}
                 </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Location */}
-          <div className="mb-4">
-            <h4 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wider">Location</h4>
-            <div className="grid grid-cols-4 gap-4">
-              <div>
-                <label className="block text-xs text-gray-400 mb-1">City</label>
-                <input className={inputClass} value={form.city} onChange={(e) => set("city", e.target.value)} placeholder="e.g. Jakarta" />
               </div>
             </div>
           </div>
