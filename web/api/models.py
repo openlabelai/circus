@@ -345,3 +345,40 @@ class QueuedRun(models.Model):
 
     def __str__(self):
         return f"{self.task.name} [{self.status}]"
+
+
+class Agent(models.Model):
+    PLATFORM_CHOICES = [
+        ("instagram", "Instagram"),
+        ("tiktok", "TikTok"),
+        ("youtube", "YouTube"),
+    ]
+    STATUS_CHOICES = [
+        ("idle", "Idle"),
+        ("busy", "Busy"),
+        ("error", "Error"),
+        ("offline", "Offline"),
+    ]
+
+    id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="agents")
+    persona = models.ForeignKey(Persona, on_delete=models.CASCADE, related_name="agents")
+    device_serial = models.CharField(max_length=200)
+    platform = models.CharField(max_length=50, choices=PLATFORM_CHOICES, default="instagram")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="offline")
+    current_action = models.CharField(max_length=200, blank=True, default="")
+    last_activity_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True, default="")
+    api_port = models.IntegerField(default=8080)
+    proxy_url = models.URLField(max_length=500, blank=True, default="")
+    actions_today = models.IntegerField(default=0)
+    total_actions = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = [("project", "device_serial")]
+
+    def __str__(self):
+        return f"Agent {self.id} ({self.persona.name} on {self.device_serial})"

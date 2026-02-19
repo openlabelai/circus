@@ -229,6 +229,26 @@ export interface WarmingStatus {
   }[];
 }
 
+export interface Agent {
+  id: string;
+  project: string;
+  persona: string;
+  persona_name: string;
+  persona_username: string;
+  device_serial: string;
+  platform: string;
+  status: "idle" | "busy" | "error" | "offline";
+  current_action: string;
+  last_activity_at: string | null;
+  error_message: string;
+  api_port: number;
+  proxy_url: string;
+  actions_today: number;
+  total_actions: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface LLMConfig {
   id: number;
   purpose: string;

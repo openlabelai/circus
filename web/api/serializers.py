@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from api.models import (
-    ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
+    Agent, ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
     ScheduledTask, ServiceCredential, Task, TaskResult,
 )
 
@@ -180,10 +180,23 @@ class ProviderAPIKeySerializer(serializers.Serializer):
     api_key = serializers.CharField(write_only=True)
 
 
+class AgentSerializer(serializers.ModelSerializer):
+    persona_name = serializers.CharField(source="persona.name", read_only=True)
+    persona_username = serializers.CharField(source="persona.username", read_only=True)
+    proxy_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
+
+    class Meta:
+        model = Agent
+        fields = "__all__"
+        read_only_fields = [
+            "id", "status", "current_action", "last_activity_at",
+            "error_message", "actions_today", "total_actions",
+            "created_at", "updated_at",
+        ]
+
+
 class QueuedRunCreateSerializer(serializers.Serializer):
     task_id = serializers.CharField()
     device_serial = serializers.CharField(required=False, default="")
     persona_id = serializers.CharField(required=False, default="")
     priority = serializers.IntegerField(required=False, default=0)
-
-

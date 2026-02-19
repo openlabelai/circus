@@ -20,6 +20,7 @@ services:
     container_name: circus-django
     volumes:
       - .:/app
+      - /Users/openlabel/dev/instagrab:/instagrab
     ports:
       - "8000:8000"
     environment:

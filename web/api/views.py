@@ -16,10 +16,11 @@ from django.db import models
 from django.db.models import Count
 
 from api.models import (
-    ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
+    Agent, ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
     ScheduledTask, ServiceCredential, Task, TaskResult,
 )
 from api.serializers import (
+    AgentSerializer,
     ArtistProfileSerializer,
     LLMConfigSerializer,
     PersonaListSerializer,
@@ -322,6 +323,174 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "running": QueuedRun.objects.filter(project=project, status="running").count(),
             },
         })
+
+    @action(detail=True, methods=["post"])
+    def spawn_agents(self, request, pk=None):
+        project = self.get_object()
+        platform = request.data.get("platform", "instagram")
+
+        # Find personas with assigned devices
+        personas = Persona.objects.filter(project=project).exclude(assigned_device="")
+
+        if not personas.exists():
+            # Auto-match: assign available devices to unassigned personas
+            from api.services import list_devices
+            available_devices = [
+                d["serial"] for d in list_devices()
+                if d["status"] == "available"
+            ]
+            unassigned = Persona.objects.filter(project=project, assigned_device="")
+            for persona, serial in zip(unassigned, available_devices):
+                persona.assigned_device = serial
+                persona.save(update_fields=["assigned_device"])
+            personas = Persona.objects.filter(project=project).exclude(assigned_device="")
+
+        if not personas.exists():
+            return Response(
+                {"error": "No personas with assigned devices and no available devices to auto-assign"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Determine starting port offset
+        existing_ports = Agent.objects.filter(project=project).values_list("api_port", flat=True)
+        next_port = max(existing_ports, default=8079) + 1
+
+        created = []
+        for persona in personas:
+            agent, was_created = Agent.objects.get_or_create(
+                project=project,
+                device_serial=persona.assigned_device,
+                defaults={
+                    "persona": persona,
+                    "platform": platform,
+                    "api_port": next_port,
+                },
+            )
+            if was_created:
+                next_port += 1
+                created.append(agent)
+
+        serializer = AgentSerializer(created, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class AgentViewSet(viewsets.ModelViewSet):
+    serializer_class = AgentSerializer
+
+    def get_queryset(self):
+        qs = Agent.objects.select_related("persona").all()
+        return qs.filter(**_project_filter(self.request))
+
+    @action(detail=True, methods=["post"])
+    def activate(self, request, pk=None):
+        agent = self.get_object()
+        from api.scheduler import get_scheduler
+        manager = get_scheduler().agent_manager
+        result = manager.activate(
+            agent_id=agent.id,
+            platform=agent.platform,
+            device_serial=agent.device_serial,
+            port=agent.api_port,
+        )
+        if result.success:
+            agent.status = "idle"
+            agent.error_message = ""
+            agent.save(update_fields=["status", "error_message"])
+        else:
+            agent.status = "error"
+            agent.error_message = result.detail
+            agent.save(update_fields=["status", "error_message"])
+        return Response({"status": agent.status, "detail": result.detail})
+
+    @action(detail=True, methods=["post"])
+    def deactivate(self, request, pk=None):
+        agent = self.get_object()
+        from api.scheduler import get_scheduler
+        manager = get_scheduler().agent_manager
+        manager.deactivate(agent.id)
+        agent.status = "offline"
+        agent.current_action = ""
+        agent.save(update_fields=["status", "current_action"])
+        return Response({"status": "offline"})
+
+    @action(detail=True, methods=["post"])
+    def execute_action(self, request, pk=None):
+        agent = self.get_object()
+        action_name = request.data.get("action")
+        target = request.data.get("target", "")
+        text = request.data.get("text", "")
+        max_comments = request.data.get("max_comments", 50)
+
+        if not action_name:
+            return Response(
+                {"error": "action is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from api.scheduler import get_scheduler
+        manager = get_scheduler().agent_manager
+        handle = manager.get(agent.id)
+        if not handle:
+            return Response(
+                {"error": "Agent not activated"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        agent.status = "busy"
+        agent.current_action = action_name
+        agent.save(update_fields=["status", "current_action"])
+
+        api = handle.platform_api
+        try:
+            with handle.lock:
+                if action_name == "like":
+                    result = api.like_post(target)
+                elif action_name == "comment":
+                    result = api.comment_on_post(target, text)
+                elif action_name == "save":
+                    result = api.save_post(target)
+                elif action_name == "follow":
+                    result = api.follow_user(target)
+                elif action_name == "scrape_comments":
+                    result = api.scrape_comments(target, max_comments=max_comments)
+                elif action_name == "scrape_profile":
+                    result = api.scrape_profile(target)
+                else:
+                    result = None
+
+            if result is None:
+                agent.status = "idle"
+                agent.current_action = ""
+                agent.save(update_fields=["status", "current_action"])
+                return Response(
+                    {"error": f"Unknown action: {action_name}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if result.success:
+                agent.actions_today += 1
+                agent.total_actions += 1
+            agent.status = "idle"
+            agent.current_action = ""
+            agent.last_activity_at = timezone.now()
+            agent.save(update_fields=[
+                "status", "current_action", "last_activity_at",
+                "actions_today", "total_actions",
+            ])
+            return Response({
+                "success": result.success,
+                "detail": result.detail,
+                "data": result.data,
+            })
+        except Exception as e:
+            agent.status = "error"
+            agent.current_action = ""
+            agent.error_message = str(e)
+            agent.save(update_fields=["status", "current_action", "error_message"])
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class PersonaViewSet(viewsets.ModelViewSet):

@@ -28,6 +28,7 @@ function withProject(path: string, projectId?: string, extra?: Record<string, st
 // -- Artist Profiles --
 
 import type {
+  Agent,
   ArtistProfile,
   Persona,
   PersonaSummary,
@@ -165,6 +166,52 @@ export async function assignPersona(id: string, deviceSerial: string): Promise<a
 
 export async function unassignPersona(id: string): Promise<any> {
   return request(`/personas/${id}/unassign/`, { method: "POST" });
+}
+
+// -- Agents --
+
+export async function getAgents(projectId?: string): Promise<{ results: Agent[] }> {
+  return request(withProject("/agents/", projectId));
+}
+
+export async function getAgent(id: string): Promise<Agent> {
+  return request(`/agents/${id}/`);
+}
+
+export async function createAgent(data: Partial<Agent>): Promise<Agent> {
+  return request("/agents/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function deleteAgent(id: string): Promise<void> {
+  await fetch(`${API_URL}/agents/${id}/`, { method: "DELETE" });
+}
+
+export async function activateAgent(id: string): Promise<{ status: string; detail: string }> {
+  return request(`/agents/${id}/activate/`, { method: "POST" });
+}
+
+export async function deactivateAgent(id: string): Promise<{ status: string }> {
+  return request(`/agents/${id}/deactivate/`, { method: "POST" });
+}
+
+export async function executeAgentAction(
+  id: string,
+  data: { action: string; target: string; text?: string; max_comments?: number },
+): Promise<{ success: boolean; detail: string; data?: any }> {
+  return request(`/agents/${id}/execute_action/`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function spawnAgents(
+  projectId: string,
+  platform?: string,
+): Promise<Agent[]> {
+  return request(`/projects/${projectId}/spawn_agents/`, {
+    method: "POST",
+    body: JSON.stringify({ platform: platform || "instagram" }),
+  });
 }
 
 // -- Devices --

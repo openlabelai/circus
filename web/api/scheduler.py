@@ -16,6 +16,7 @@ from django.utils import timezone
 from circus.config import Config
 from circus.device.pool import DevicePool
 from circus.device.screen import ScreenCaptureManager
+from circus.platforms.agent_manager import AgentManager
 from circus.tasks.models import Task as CircusTask
 from circus.tasks.runner import TaskRunner
 
@@ -35,6 +36,7 @@ class CircusScheduler:
     def __init__(self):
         self.config = Config()
         self.screen_manager = ScreenCaptureManager()
+        self.agent_manager = AgentManager()
         self.pool = DevicePool(on_change=self._on_device_change)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._loop_thread: threading.Thread | None = None
@@ -93,6 +95,7 @@ class CircusScheduler:
             self.screen_manager.stop(serial)
 
     def shutdown(self):
+        self.agent_manager.deactivate_all()
         self.screen_manager.stop_all()
         if self._aps:
             self._aps.shutdown(wait=False)
