@@ -28,6 +28,7 @@ function withProject(path: string, projectId?: string, extra?: Record<string, st
 // -- Artist Profiles --
 
 import type {
+  Account,
   Agent,
   ArtistProfile,
   Persona,
@@ -212,6 +213,49 @@ export async function spawnAgents(
     method: "POST",
     body: JSON.stringify({ platform: platform || "instagram" }),
   });
+}
+
+export async function generateFans(
+  projectId: string,
+  count: number,
+  platform?: string,
+): Promise<Agent[]> {
+  return request(`/projects/${projectId}/generate_fans/`, {
+    method: "POST",
+    body: JSON.stringify({ count, platform: platform || undefined }),
+  });
+}
+
+export async function startCampaign(
+  projectId: string,
+  platform?: string,
+): Promise<{ provisioned: number; remaining_ready: number }> {
+  return request(`/projects/${projectId}/start_campaign/`, {
+    method: "POST",
+    body: JSON.stringify({ platform: platform || undefined }),
+  });
+}
+
+// -- Accounts --
+
+export async function getAccounts(platform?: string, status?: string): Promise<{ results: Account[] }> {
+  const params = new URLSearchParams();
+  if (platform) params.set("platform", platform);
+  if (status) params.set("status", status);
+  const qs = params.toString();
+  return request(`/accounts/${qs ? `?${qs}` : ""}`);
+}
+
+export async function createAccount(data: Partial<Account>): Promise<Account> {
+  return request("/accounts/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function updateAccount(id: string, data: Partial<Account>): Promise<Account> {
+  return request(`/accounts/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export async function deleteAccount(id: string): Promise<void> {
+  await fetch(`${API_URL}/accounts/${id}/`, { method: "DELETE" });
 }
 
 // -- Devices --

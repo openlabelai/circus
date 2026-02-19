@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from api.models import (
-    Agent, ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
+    Account, Agent, ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
     ScheduledTask, ServiceCredential, Task, TaskResult,
 )
 
@@ -53,6 +53,9 @@ class ProjectSerializer(serializers.ModelSerializer):
     task_count = serializers.IntegerField(read_only=True, default=0)
     schedule_count = serializers.IntegerField(read_only=True, default=0)
     active_schedule_count = serializers.IntegerField(read_only=True, default=0)
+    agent_count = serializers.IntegerField(read_only=True, default=0)
+    ready_agent_count = serializers.IntegerField(read_only=True, default=0)
+    active_agent_count = serializers.IntegerField(read_only=True, default=0)
     artist_profile_detail = ArtistProfileSummarySerializer(source="artist_profile", read_only=True)
 
     class Meta:
@@ -180,9 +183,18 @@ class ProviderAPIKeySerializer(serializers.Serializer):
     api_key = serializers.CharField(write_only=True)
 
 
+class AccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Account
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
 class AgentSerializer(serializers.ModelSerializer):
-    persona_name = serializers.CharField(source="persona.name", read_only=True)
-    persona_username = serializers.CharField(source="persona.username", read_only=True)
+    persona_name = serializers.CharField(source="persona.name", read_only=True, default="")
+    persona_username = serializers.CharField(source="persona.username", read_only=True, default="")
+    account_username = serializers.CharField(source="account.username", read_only=True, default="")
+    account_platform = serializers.CharField(source="account.platform", read_only=True, default="")
     proxy_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
 
     class Meta:

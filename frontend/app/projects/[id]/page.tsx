@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getProject, updateProject, deleteProject, getProjectStats } from "@/lib/api";
+import { getProject, updateProject, deleteProject, getProjectStats, startCampaign } from "@/lib/api";
 import { useProject } from "@/lib/project-context";
 import ProjectForm from "@/components/projects/ProjectForm";
 import Link from "next/link";
@@ -79,7 +79,7 @@ export default function ProjectDetailPage() {
   }
 
   const quickLinks = [
-    { label: "Personas", href: `/projects/${id}/personas`, count: stats?.persona_count },
+    { label: "Fans", href: `/projects/${id}/fans`, count: stats?.persona_count },
     { label: "Tasks", href: `/projects/${id}/tasks`, count: stats?.task_count },
     { label: "Schedules", href: `/projects/${id}/schedules`, count: stats ? stats.schedules_active + stats.schedules_paused : undefined },
     { label: "Results", href: `/projects/${id}/results` },
@@ -96,13 +96,26 @@ export default function ProjectDetailPage() {
             {project.status}
           </span>
         </div>
+        {project.ready_agent_count > 0 && (
+          <button
+            onClick={async () => {
+              const result = await startCampaign(id);
+              alert(`Provisioned ${result.provisioned} fans. ${result.remaining_ready} still awaiting resources.`);
+              getProject(id).then(setProject);
+              getProjectStats(id).then(setStats);
+            }}
+            className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md text-sm font-medium transition-colors"
+          >
+            Start Campaign ({project.ready_agent_count})
+          </button>
+        )}
       </div>
 
       {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-6">
           <StatCard
-            label="Personas"
+            label="Fans"
             value={stats.persona_count}
             sub={project.target_persona_count ? `of ${project.target_persona_count} target` : undefined}
           />

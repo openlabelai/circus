@@ -65,6 +65,9 @@ export interface Project {
   task_count: number;
   schedule_count: number;
   active_schedule_count: number;
+  agent_count: number;
+  ready_agent_count: number;
+  active_agent_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -229,15 +232,33 @@ export interface WarmingStatus {
   }[];
 }
 
+export interface Account {
+  id: string;
+  platform: "instagram" | "tiktok" | "youtube";
+  username: string;
+  password: string;
+  email: string;
+  phone: string;
+  status: "available" | "warming" | "assigned" | "banned" | "cooldown";
+  notes: string;
+  warming_started_at: string | null;
+  warming_days_completed: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Agent {
   id: string;
   project: string;
-  persona: string;
+  persona: string | null;
   persona_name: string;
   persona_username: string;
+  account: string | null;
+  account_username: string;
+  account_platform: string;
   device_serial: string;
   platform: string;
-  status: "idle" | "busy" | "error" | "offline";
+  status: "draft" | "ready" | "idle" | "busy" | "error" | "offline";
   current_action: string;
   last_activity_at: string | null;
   error_message: string;

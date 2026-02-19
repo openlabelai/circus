@@ -8,6 +8,7 @@ const globalNavItems = [
   { href: "/projects", label: "Projects" },
   { href: "/artist-profiles", label: "Artist Profiles" },
   { href: "/devices", label: "Devices" },
+  { href: "/accounts", label: "Accounts" },
   { href: "/settings", label: "Settings" },
 ];
 

@@ -145,9 +145,9 @@ export default function ProjectsPage() {
               {/* Stats row */}
               <div className="grid grid-cols-3 gap-3 text-center mb-3">
                 <div>
-                  <div className="text-lg font-bold">{p.persona_count}</div>
+                  <div className="text-lg font-bold">{p.agent_count}</div>
                   <div className="text-xs text-gray-500">
-                    Personas{p.target_persona_count > 0 && <span> / {p.target_persona_count}</span>}
+                    Fans{p.target_persona_count > 0 && <span> / {p.target_persona_count}</span>}
                   </div>
                 </div>
                 <div>

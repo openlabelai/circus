@@ -183,6 +183,37 @@ class ServiceCredential(models.Model):
         return f"{self.persona_id}:{self.service_name}"
 
 
+class Account(models.Model):
+    PLATFORM_CHOICES = [("instagram", "Instagram"), ("tiktok", "TikTok"), ("youtube", "YouTube")]
+    STATUS_CHOICES = [
+        ("available", "Available"),
+        ("warming", "Warming"),
+        ("assigned", "Assigned"),
+        ("banned", "Banned"),
+        ("cooldown", "Cooldown"),
+    ]
+
+    id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+    platform = models.CharField(max_length=50, choices=PLATFORM_CHOICES, default="instagram")
+    username = models.CharField(max_length=200)
+    password = models.CharField(max_length=200)
+    email = models.EmailField(blank=True, default="")
+    phone = models.CharField(max_length=50, blank=True, default="")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="available")
+    notes = models.TextField(blank=True, default="")
+    warming_started_at = models.DateTimeField(null=True, blank=True)
+    warming_days_completed = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = [("platform", "username")]
+
+    def __str__(self):
+        return f"{self.username} ({self.platform})"
+
+
 class Task(models.Model):
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks", null=True, blank=True)
@@ -354,6 +385,8 @@ class Agent(models.Model):
         ("youtube", "YouTube"),
     ]
     STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("ready", "Ready"),
         ("idle", "Idle"),
         ("busy", "Busy"),
         ("error", "Error"),
@@ -362,10 +395,11 @@ class Agent(models.Model):
 
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="agents")
-    persona = models.ForeignKey(Persona, on_delete=models.CASCADE, related_name="agents")
-    device_serial = models.CharField(max_length=200)
+    persona = models.ForeignKey(Persona, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
+    account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
+    device_serial = models.CharField(max_length=200, blank=True, default="")
     platform = models.CharField(max_length=50, choices=PLATFORM_CHOICES, default="instagram")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="offline")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
     current_action = models.CharField(max_length=200, blank=True, default="")
     last_activity_at = models.DateTimeField(null=True, blank=True)
     error_message = models.TextField(blank=True, default="")
@@ -378,7 +412,7 @@ class Agent(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        unique_together = [("project", "device_serial")]
 
     def __str__(self):
-        return f"Agent {self.id} ({self.persona.name} on {self.device_serial})"
+        name = self.persona.name if self.persona else "No persona"
+        return f"Agent {self.id} ({name})"

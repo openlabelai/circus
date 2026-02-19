@@ -12,6 +12,7 @@ router.register(r'results', views.TaskResultViewSet, basename='taskresult')
 router.register(r'schedules', views.ScheduledTaskViewSet)
 router.register(r'queue', views.QueuedRunViewSet, basename='queuedrun')
 router.register(r'agents', views.AgentViewSet, basename='agent')
+router.register(r'accounts', views.AccountViewSet, basename='account')
 router.register(r'llm-config', views.LLMConfigViewSet)
 
 urlpatterns = [

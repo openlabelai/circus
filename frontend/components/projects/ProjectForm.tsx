@@ -245,7 +245,7 @@ export default function ProjectForm({ initial = {}, onSave, isNew }: Props) {
       {/* Scale */}
       <Section title="Scale">
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Target Persona Count">
+          <Field label="Synthetic Fans">
             <input
               type="number"
               className={inputClass}

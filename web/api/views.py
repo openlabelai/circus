@@ -16,10 +16,11 @@ from django.db import models
 from django.db.models import Count
 
 from api.models import (
-    Agent, ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
+    Account, Agent, ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
     ScheduledTask, ServiceCredential, Task, TaskResult,
 )
 from api.serializers import (
+    AccountSerializer,
     AgentSerializer,
     ArtistProfileSerializer,
     LLMConfigSerializer,
@@ -288,6 +289,17 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 filter=models.Q(schedules__status="active"),
                 distinct=True,
             ),
+            agent_count=Count("agents", distinct=True),
+            ready_agent_count=Count(
+                "agents",
+                filter=models.Q(agents__status="ready"),
+                distinct=True,
+            ),
+            active_agent_count=Count(
+                "agents",
+                filter=models.Q(agents__status__in=["idle", "busy"]),
+                distinct=True,
+            ),
         ).all()
 
     @action(detail=True, methods=["get"])
@@ -373,12 +385,167 @@ class ProjectViewSet(viewsets.ModelViewSet):
         serializer = AgentSerializer(created, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["post"])
+    def generate_fans(self, request, pk=None):
+        project = self.get_object()
+        count = request.data.get("count", project.target_persona_count or 1)
+        platform = request.data.get("platform", project.target_platform or "instagram")
+
+        if not project.artist_profile:
+            return Response(
+                {"error": "Project needs an artist profile with completed research"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        artist_profile = project.artist_profile
+        artist_profile_data = None
+        if artist_profile.status == "completed":
+            artist_profile_data = artist_profile.profile_data
+        target_artist = project.target_artist or artist_profile.artist_name
+
+        from api.services import generate_personas
+        circus_personas = generate_personas(
+            count, None,
+            genre=project.genre or None,
+            target_artist=target_artist,
+            artist_profile_data=artist_profile_data,
+        )
+
+        created_agents = []
+        for cp in circus_personas:
+            persona = Persona.objects.create(
+                id=cp.id,
+                project=project,
+                name=cp.name,
+                age=cp.age,
+                gender=cp.gender,
+                email=cp.email,
+                phone=cp.phone,
+                city=cp.city,
+                state=cp.state,
+                country=cp.country,
+                username=cp.username,
+                bio=cp.bio,
+                interests=cp.interests,
+                niche=cp.niche,
+                tone=cp.tone,
+                background_story=cp.background_story,
+                content_style=cp.content_style,
+                genre=cp.genre,
+                archetype=cp.archetype,
+                favorite_artists=cp.favorite_artists,
+                music_discovery_style=cp.music_discovery_style,
+                comment_style=cp.comment_style,
+                bio_template=cp.bio_template,
+                username_style=cp.username_style,
+                engagement_pattern=cp.engagement_pattern,
+                content_behavior=cp.content_behavior,
+                profile_aesthetic=cp.profile_aesthetic,
+                artist_knowledge_depth=cp.artist_knowledge_depth,
+                target_artist=cp.target_artist,
+                engagement_style=cp.behavior.engagement_style,
+                session_duration_min=cp.behavior.session_duration_min,
+                session_duration_max=cp.behavior.session_duration_max,
+                posting_frequency=cp.behavior.posting_frequency,
+                active_hours_start=cp.behavior.active_hours_start,
+                active_hours_end=cp.behavior.active_hours_end,
+                scroll_speed=cp.behavior.scroll_speed,
+            )
+            for svc_name, cred in cp.credentials.items():
+                ServiceCredential.objects.create(
+                    persona=persona,
+                    service_name=svc_name,
+                    username=cred.username,
+                    password=cred.password,
+                    email=cred.email,
+                )
+
+            agent = Agent.objects.create(
+                project=project,
+                persona=persona,
+                platform=platform,
+                status="ready",
+            )
+            created_agents.append(agent)
+
+        serializer = AgentSerializer(created_agents, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def start_campaign(self, request, pk=None):
+        project = self.get_object()
+        platform = request.data.get("platform", project.target_platform or "instagram")
+
+        ready_agents = Agent.objects.filter(project=project, status="ready")
+        if not ready_agents.exists():
+            return Response(
+                {"error": "No ready agents to provision"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get available accounts matching platform
+        available_accounts = list(
+            Account.objects.filter(platform=platform, status="available")
+        )
+        # Get available devices
+        from api.services import list_devices
+        available_devices = [
+            d["serial"] for d in list_devices()
+            if d["status"] == "available"
+        ]
+
+        # Determine starting port
+        existing_ports = Agent.objects.filter(project=project).exclude(
+            api_port=8080
+        ).values_list("api_port", flat=True)
+        next_port = max(existing_ports, default=8079) + 1
+
+        provisioned = 0
+        for agent in ready_agents:
+            if not available_accounts and not available_devices:
+                break
+
+            if available_accounts:
+                account = available_accounts.pop(0)
+                account.status = "assigned"
+                account.save(update_fields=["status"])
+                agent.account = account
+
+            if available_devices:
+                agent.device_serial = available_devices.pop(0)
+
+            agent.api_port = next_port
+            next_port += 1
+            agent.status = "idle"
+            agent.save()
+            provisioned += 1
+
+        remaining = Agent.objects.filter(project=project, status="ready").count()
+        return Response({
+            "provisioned": provisioned,
+            "remaining_ready": remaining,
+        })
+
+
+class AccountViewSet(viewsets.ModelViewSet):
+    serializer_class = AccountSerializer
+
+    def get_queryset(self):
+        qs = Account.objects.all()
+        platform = self.request.query_params.get("platform")
+        account_status = self.request.query_params.get("status")
+        if platform:
+            qs = qs.filter(platform=platform)
+        if account_status:
+            qs = qs.filter(status=account_status)
+        return qs
+
 
 class AgentViewSet(viewsets.ModelViewSet):
     serializer_class = AgentSerializer
 
     def get_queryset(self):
-        qs = Agent.objects.select_related("persona").all()
+        qs = Agent.objects.select_related("persona", "account").all()
         return qs.filter(**_project_filter(self.request))
 
     @action(detail=True, methods=["post"])
