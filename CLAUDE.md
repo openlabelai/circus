@@ -66,17 +66,19 @@ circus/              # Core Python library
   persona/           # Persona generation, artist research
   research/          # YouTube API, Instagram scraping, API enrichment
   llm/               # LLM provider abstraction
-  device/            # ADB device management
+  device/            # ADB device management (pool.py, models.py, discovery.py)
   tasks/             # Task runner, models, executor
 web/                 # Django project
-  api/               # Models, serializers, views, scheduler
+  api/               # Models, serializers, views, scheduler, services
   circus_web/        # Django settings
 frontend/            # Next.js app
   app/               # App router pages
     artist-profiles/ # Artist profile list (single page, no [id] detail route)
     personas/        # Persona CRUD
     projects/        # Project management
-    devices/         # Device management
+    devices/         # Device management (with metadata edit)
+    accounts/        # Account pool management
+    proxies/         # Proxy pool management
     tasks/           # Task editor
     schedules/       # Schedule management
     results/         # Task results viewer
@@ -95,15 +97,40 @@ SQLite at `web/db.sqlite3`. Mounted via Docker volume so shared between host and
 - `ArtistProfile` — artist identity, social links, research output, scraped comments, profile_image_url (auto-fetched from YouTube)
 - `Project` — campaign container linking artist profile, personas, tasks
 - `Persona` — fake fan account with demographics, behavior, credentials
+- `Account` — pool of pre-warmed platform accounts (instagram/tiktok/youtube)
+- `Agent` — synthetic fan = persona + account + device + proxy (the operational unit)
+- `Device` — persistent device metadata (serial, hardware, location, IP, status). Dual-layer with in-memory `DevicePool` for real-time ADB state
+- `Proxy` — proxy connection config with health tracking (host, port, protocol, auth, provider, country, status, latency)
 - `Task` — automation task with action steps (YAML-synced)
 - `ScheduledTask` — cron/interval triggers for tasks
 - `QueuedRun` — task execution queue
 - `TaskResult` — execution results with screenshots
 - `LLMConfig` / `ProviderAPIKey` — AI provider settings
 
+## Device Architecture (Dual-Layer)
+
+- **`DevicePool`** (`circus/device/pool.py`) — in-memory, real-time ADB truth. Handles acquire/release, task execution. Never driven by DB.
+- **`Device` model** (`web/api/models.py`) — persistent config/metadata layer (name, bay, slot, location_label, device_ip, proxy assignment).
+- Pool syncs → DB on every `refresh()` via `on_sync` callback → `sync_devices_to_db()` in `web/api/services.py`.
+- `DeviceViewSet` merges live pool state with DB metadata in list/retrieve responses.
+- Agent has both `device_serial` (string, backwards compat) and `device` (FK to Device model).
+
 ## API Pattern
 
 REST endpoints via DRF ViewSets at `/api/`. Frontend calls via `frontend/lib/api.ts`. Types defined in `frontend/lib/types.ts` — keep in sync with serializers.
+
+### Device API (`DeviceViewSet`, lookup_field="serial")
+- `GET /api/devices/` — list (merges pool live state + DB metadata)
+- `GET /api/devices/<serial>/` — retrieve (merged)
+- `POST /api/devices/refresh/` — refresh ADB pool + sync to DB
+- `PATCH /api/devices/<serial>/metadata/` — update persistent fields (name, bay, slot, location_label, device_ip)
+- `GET /api/devices/<serial>/screen/` — JPEG screenshot
+- `GET /api/devices/<serial>/screen/stream/` — MJPEG stream
+
+### Proxy API (`ProxyViewSet`)
+- Standard CRUD at `/api/proxies/`
+- Filterable by `?status=` and `?country=`
+- Response includes computed `proxy_url` field from `as_url()` method
 
 ## DRF Serializer Notes
 
