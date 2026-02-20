@@ -10,13 +10,16 @@ from circus.exceptions import DeviceBusyError, DeviceNotFoundError
 
 # Callback signature: (event: "added"|"removed", serial: str) -> None
 OnChangeCallback = Callable[[str, str], None]
+# Sync callback: (devices: list[Device]) -> None
+OnSyncCallback = Callable[[list[Device]], None]
 
 
 class DevicePool:
-    def __init__(self, on_change: OnChangeCallback | None = None):
+    def __init__(self, on_change: OnChangeCallback | None = None, on_sync: OnSyncCallback | None = None):
         self._devices: dict[str, Device] = {}
         self._lock: asyncio.Lock | None = None
         self._on_change = on_change
+        self._on_sync = on_sync
 
     def _get_lock(self) -> asyncio.Lock:
         if self._lock is None:
@@ -61,6 +64,10 @@ class DevicePool:
                 self._on_change("added", serial)
             for serial in removed:
                 self._on_change("removed", serial)
+
+        # Fire sync callback with all devices
+        if self._on_sync:
+            self._on_sync(list(self._devices.values()))
 
         return list(self._devices.values())
 

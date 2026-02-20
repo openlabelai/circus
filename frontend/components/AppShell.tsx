@@ -9,6 +9,7 @@ const globalNavItems = [
   { href: "/artist-profiles", label: "Artist Profiles" },
   { href: "/devices", label: "Devices" },
   { href: "/accounts", label: "Accounts" },
+  { href: "/proxies", label: "Proxies" },
   { href: "/settings", label: "Settings" },
 ];
 
@@ -27,7 +28,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <aside className="w-56 bg-gray-900 border-r border-gray-800 p-4 flex flex-col gap-1">
-        <h1 className="text-xl font-bold mb-4 px-3">Circus</h1>
+        <h1 className="text-5xl font-bold mb-4 px-3">circus</h1>
         {globalNavItems.map((item) => (
           <Link
             key={item.href}

@@ -1,8 +1,8 @@
 from rest_framework import serializers
 
 from api.models import (
-    Account, Agent, ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
-    ScheduledTask, ServiceCredential, Task, TaskResult,
+    Account, Agent, ArtistProfile, Device, LLMConfig, Persona, Project, Proxy,
+    QueuedRun, ScheduledTask, ServiceCredential, Task, TaskResult,
 )
 
 
@@ -190,12 +190,36 @@ class AccountSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at", "updated_at"]
 
 
+class DeviceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Device
+        fields = "__all__"
+        read_only_fields = [
+            "id", "model", "brand", "android_version", "sdk_version",
+            "status", "last_seen", "last_error", "created_at", "updated_at",
+        ]
+
+
+class ProxySerializer(serializers.ModelSerializer):
+    proxy_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Proxy
+        fields = "__all__"
+        read_only_fields = ["id", "latency_ms", "last_health_check", "created_at", "updated_at"]
+
+    def get_proxy_url(self, obj):
+        return obj.as_url()
+
+
 class AgentSerializer(serializers.ModelSerializer):
     persona_name = serializers.CharField(source="persona.name", read_only=True, default="")
     persona_username = serializers.CharField(source="persona.username", read_only=True, default="")
     account_username = serializers.CharField(source="account.username", read_only=True, default="")
     account_platform = serializers.CharField(source="account.platform", read_only=True, default="")
     proxy_url = serializers.URLField(max_length=500, required=False, allow_blank=True)
+    device_name = serializers.CharField(source="device.name", read_only=True, default="")
+    device_location = serializers.SerializerMethodField()
 
     class Meta:
         model = Agent
@@ -205,6 +229,12 @@ class AgentSerializer(serializers.ModelSerializer):
             "error_message", "actions_today", "total_actions",
             "created_at", "updated_at",
         ]
+
+    def get_device_location(self, obj):
+        if not obj.device:
+            return ""
+        parts = [p for p in [obj.device.bay, obj.device.slot, obj.device.location_label] if p]
+        return " / ".join(parts)
 
 
 class QueuedRunCreateSerializer(serializers.Serializer):

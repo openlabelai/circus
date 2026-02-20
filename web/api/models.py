@@ -214,6 +214,95 @@ class Account(models.Model):
         return f"{self.username} ({self.platform})"
 
 
+class Device(models.Model):
+    STATUS_CHOICES = [
+        ("available", "Available"),
+        ("busy", "Busy"),
+        ("error", "Error"),
+        ("offline", "Offline"),
+    ]
+
+    serial = models.CharField(max_length=200, unique=True)
+
+    # Hardware
+    name = models.CharField(max_length=200, blank=True, default="")
+    model = models.CharField(max_length=200, blank=True, default="")
+    brand = models.CharField(max_length=200, blank=True, default="")
+    android_version = models.CharField(max_length=50, blank=True, default="")
+    sdk_version = models.IntegerField(default=0)
+
+    # Location
+    bay = models.CharField(max_length=100, blank=True, default="")
+    slot = models.CharField(max_length=100, blank=True, default="")
+    location_label = models.CharField(max_length=200, blank=True, default="")
+
+    # Network
+    device_ip = models.GenericIPAddressField(null=True, blank=True)
+
+    # Runtime
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="offline")
+    last_seen = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["serial"]
+
+    def __str__(self):
+        label = self.name or self.model or self.serial
+        return f"{label} ({self.status})"
+
+
+class Proxy(models.Model):
+    PROTOCOL_CHOICES = [
+        ("http", "HTTP"),
+        ("https", "HTTPS"),
+        ("socks5", "SOCKS5"),
+    ]
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("inactive", "Inactive"),
+        ("banned", "Banned"),
+        ("testing", "Testing"),
+    ]
+
+    id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
+
+    # Connection
+    host = models.CharField(max_length=200)
+    port = models.IntegerField()
+    protocol = models.CharField(max_length=10, choices=PROTOCOL_CHOICES, default="http")
+    username = models.CharField(max_length=200, blank=True, default="")
+    password = models.CharField(max_length=200, blank=True, default="")
+
+    # Metadata
+    provider = models.CharField(max_length=200, blank=True, default="")
+    country = models.CharField(max_length=100, blank=True, default="")
+    city = models.CharField(max_length=100, blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+
+    # Health
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
+    latency_ms = models.IntegerField(null=True, blank=True)
+    last_health_check = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = [("host", "port")]
+
+    def __str__(self):
+        return f"{self.host}:{self.port} ({self.status})"
+
+    def as_url(self) -> str:
+        auth = f"{self.username}:{self.password}@" if self.username else ""
+        return f"{self.protocol}://{auth}{self.host}:{self.port}"
+
+
 class Task(models.Model):
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks", null=True, blank=True)
@@ -398,6 +487,7 @@ class Agent(models.Model):
     persona = models.ForeignKey(Persona, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
     device_serial = models.CharField(max_length=200, blank=True, default="")
+    device = models.ForeignKey(Device, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
     platform = models.CharField(max_length=50, choices=PLATFORM_CHOICES, default="instagram")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
     current_action = models.CharField(max_length=200, blank=True, default="")
@@ -405,6 +495,7 @@ class Agent(models.Model):
     error_message = models.TextField(blank=True, default="")
     api_port = models.IntegerField(default=8080)
     proxy_url = models.URLField(max_length=500, blank=True, default="")
+    proxy = models.ForeignKey(Proxy, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
     actions_today = models.IntegerField(default=0)
     total_actions = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -16,17 +16,19 @@ from django.db import models
 from django.db.models import Count
 
 from api.models import (
-    Account, Agent, ArtistProfile, LLMConfig, Persona, Project, QueuedRun,
-    ScheduledTask, ServiceCredential, Task, TaskResult,
+    Account, Agent, ArtistProfile, Device, LLMConfig, Persona, Project, Proxy,
+    QueuedRun, ScheduledTask, ServiceCredential, Task, TaskResult,
 )
 from api.serializers import (
     AccountSerializer,
     AgentSerializer,
     ArtistProfileSerializer,
+    DeviceSerializer,
     LLMConfigSerializer,
     PersonaListSerializer,
     PersonaSerializer,
     ProjectSerializer,
+    ProxySerializer,
     QueuedRunCreateSerializer,
     QueuedRunSerializer,
     ScheduledTaskSerializer,
@@ -376,6 +378,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                     "persona": persona,
                     "platform": platform,
                     "api_port": next_port,
+                    "device": Device.objects.filter(serial=persona.assigned_device).first(),
                 },
             )
             if was_created:
@@ -512,7 +515,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 agent.account = account
 
             if available_devices:
-                agent.device_serial = available_devices.pop(0)
+                serial = available_devices.pop(0)
+                agent.device_serial = serial
+                agent.device = Device.objects.filter(serial=serial).first()
 
             agent.api_port = next_port
             next_port += 1
@@ -545,18 +550,19 @@ class AgentViewSet(viewsets.ModelViewSet):
     serializer_class = AgentSerializer
 
     def get_queryset(self):
-        qs = Agent.objects.select_related("persona", "account").all()
+        qs = Agent.objects.select_related("persona", "account", "device").all()
         return qs.filter(**_project_filter(self.request))
 
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
         agent = self.get_object()
+        serial = agent.device.serial if agent.device else agent.device_serial
         from api.scheduler import get_scheduler
         manager = get_scheduler().agent_manager
         result = manager.activate(
             agent_id=agent.id,
             platform=agent.platform,
-            device_serial=agent.device_serial,
+            device_serial=serial,
             port=agent.api_port,
         )
         if result.success:
@@ -913,51 +919,96 @@ class TaskResultViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({"imported": count})
 
 
-# -- Device views (not model-backed, uses in-memory pool) --
+class DeviceViewSet(viewsets.ViewSet):
+    """Hybrid device viewset: merges live pool state with DB metadata."""
+    lookup_field = "serial"
 
-@api_view(["GET"])
-def device_list(request):
-    from api.services import list_devices
-    return Response(list_devices())
+    def list(self, request):
+        from api.services import list_devices
+        pool_devices = list_devices()
+        # Merge DB metadata
+        db_devices = {d.serial: d for d in Device.objects.all()}
+        for pd in pool_devices:
+            db_dev = db_devices.get(pd["serial"])
+            if db_dev:
+                pd["name"] = db_dev.name
+                pd["bay"] = db_dev.bay
+                pd["slot"] = db_dev.slot
+                pd["location_label"] = db_dev.location_label
+                pd["device_ip"] = str(db_dev.device_ip) if db_dev.device_ip else None
+                pd["db_id"] = db_dev.id
+            else:
+                pd["name"] = ""
+                pd["bay"] = ""
+                pd["slot"] = ""
+                pd["location_label"] = ""
+                pd["device_ip"] = None
+                pd["db_id"] = None
+        return Response(pool_devices)
 
+    def retrieve(self, request, serial=None):
+        from api.services import get_device
+        device = get_device(serial)
+        if device is None:
+            return Response({"error": "Device not found"}, status=status.HTTP_404_NOT_FOUND)
+        db_dev = Device.objects.filter(serial=serial).first()
+        if db_dev:
+            device["name"] = db_dev.name
+            device["bay"] = db_dev.bay
+            device["slot"] = db_dev.slot
+            device["location_label"] = db_dev.location_label
+            device["device_ip"] = str(db_dev.device_ip) if db_dev.device_ip else None
+            device["db_id"] = db_dev.id
+        return Response(device)
 
-@api_view(["POST"])
-def device_refresh(request):
-    from api.services import refresh_devices
-    return Response(refresh_devices())
+    @action(detail=False, methods=["post"])
+    def refresh(self, request):
+        from api.services import refresh_devices
+        return Response(refresh_devices())
 
+    @action(detail=True, methods=["patch"], url_path="metadata")
+    def update_metadata(self, request, serial=None):
+        db_dev = Device.objects.filter(serial=serial).first()
+        if not db_dev:
+            return Response({"error": "Device not in DB — refresh first"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = DeviceSerializer(db_dev, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
-@api_view(["GET"])
-def device_detail(request, serial):
-    from api.services import get_device
-    device = get_device(serial)
-    if device is None:
-        return Response({"error": "Device not found"}, status=status.HTTP_404_NOT_FOUND)
-    return Response(device)
+    @action(detail=True, methods=["get"])
+    def screen(self, request, serial=None):
+        from api.scheduler import get_scheduler
+        manager = get_scheduler().screen_manager
+        frame = manager.get_frame(serial)
+        if frame is None:
+            return Response(
+                {"error": "No frame available"}, status=status.HTTP_404_NOT_FOUND
+            )
+        return HttpResponse(frame, content_type="image/jpeg")
 
-
-@api_view(["GET"])
-def device_screen(request, serial):
-    """Return latest JPEG screenshot for a device."""
-    from api.scheduler import get_scheduler
-    manager = get_scheduler().screen_manager
-    frame = manager.get_frame(serial)
-    if frame is None:
-        return Response(
-            {"error": "No frame available"}, status=status.HTTP_404_NOT_FOUND
+    @action(detail=True, methods=["get"], url_path="screen/stream")
+    def screen_stream(self, request, serial=None):
+        from api.scheduler import get_scheduler
+        manager = get_scheduler().screen_manager
+        return StreamingHttpResponse(
+            manager.stream(serial),
+            content_type="multipart/x-mixed-replace; boundary=frame",
         )
-    return HttpResponse(frame, content_type="image/jpeg")
 
 
-@api_view(["GET"])
-def device_screen_stream(request, serial):
-    """Return MJPEG stream for a device."""
-    from api.scheduler import get_scheduler
-    manager = get_scheduler().screen_manager
-    return StreamingHttpResponse(
-        manager.stream(serial),
-        content_type="multipart/x-mixed-replace; boundary=frame",
-    )
+class ProxyViewSet(viewsets.ModelViewSet):
+    serializer_class = ProxySerializer
+
+    def get_queryset(self):
+        qs = Proxy.objects.all()
+        proxy_status = self.request.query_params.get("status")
+        country = self.request.query_params.get("country")
+        if proxy_status:
+            qs = qs.filter(status=proxy_status)
+        if country:
+            qs = qs.filter(country=country)
+        return qs
 
 
 @api_view(["GET"])

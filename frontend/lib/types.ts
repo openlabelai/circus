@@ -164,6 +164,32 @@ export interface Device {
   current_task: string | null;
   last_seen: number;
   error_message: string | null;
+  // Persistent metadata (from DB)
+  name: string;
+  bay: string;
+  slot: string;
+  location_label: string;
+  device_ip: string | null;
+  db_id: number | null;
+}
+
+export interface Proxy {
+  id: string;
+  host: string;
+  port: number;
+  protocol: "http" | "https" | "socks5";
+  username: string;
+  password: string;
+  provider: string;
+  country: string;
+  city: string;
+  notes: string;
+  status: "active" | "inactive" | "banned" | "testing";
+  latency_ms: number | null;
+  last_health_check: string | null;
+  proxy_url: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Task {
@@ -257,6 +283,9 @@ export interface Agent {
   account_username: string;
   account_platform: string;
   device_serial: string;
+  device: number | null;
+  device_name: string;
+  device_location: string;
   platform: string;
   status: "draft" | "ready" | "idle" | "busy" | "error" | "offline";
   current_action: string;
@@ -264,6 +293,7 @@ export interface Agent {
   error_message: string;
   api_port: number;
   proxy_url: string;
+  proxy: string | null;
   actions_today: number;
   total_actions: number;
   created_at: string;

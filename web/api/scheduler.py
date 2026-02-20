@@ -37,7 +37,7 @@ class CircusScheduler:
         self.config = Config()
         self.screen_manager = ScreenCaptureManager()
         self.agent_manager = AgentManager()
-        self.pool = DevicePool(on_change=self._on_device_change)
+        self.pool = DevicePool(on_change=self._on_device_change, on_sync=self._on_device_sync)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._loop_thread: threading.Thread | None = None
         self._aps = None  # APScheduler BackgroundScheduler
@@ -93,6 +93,22 @@ class CircusScheduler:
             self.screen_manager.start(serial)
         elif event == "removed":
             self.screen_manager.stop(serial)
+
+    def _on_device_sync(self, devices) -> None:
+        """Called by DevicePool after refresh — persist device state to DB."""
+        if self._loop:
+            asyncio.run_coroutine_threadsafe(
+                asyncio.to_thread(self._sync_devices_to_db, devices),
+                self._loop,
+            )
+
+    @staticmethod
+    def _sync_devices_to_db(devices) -> None:
+        from api.services import sync_devices_to_db
+        try:
+            sync_devices_to_db(devices)
+        except Exception:
+            logger.exception("Failed to sync devices to DB")
 
     def shutdown(self):
         self.agent_manager.deactivate_all()

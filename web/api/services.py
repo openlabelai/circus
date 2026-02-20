@@ -139,6 +139,35 @@ def run_task_on_all(task, device_filter: list[str] | None = None) -> dict:
     }
 
 
+def sync_devices_to_db(devices) -> None:
+    """Sync in-memory DevicePool devices to the Django Device model."""
+    from api.models import Device as DBDevice
+    from django.utils import timezone
+
+    seen_serials = set()
+    now = timezone.now()
+
+    for dev in devices:
+        seen_serials.add(dev.serial)
+        DBDevice.objects.update_or_create(
+            serial=dev.serial,
+            defaults={
+                "model": dev.info.model if dev.info else "",
+                "brand": dev.info.brand if dev.info else "",
+                "android_version": dev.info.android_version if dev.info else "",
+                "sdk_version": dev.info.sdk_version if dev.info else 0,
+                "status": dev.status.value,
+                "last_seen": now,
+                "last_error": dev.error_message or "",
+            },
+        )
+
+    # Mark devices not in pool as offline
+    DBDevice.objects.exclude(serial__in=seen_serials).filter(
+        status__in=["available", "busy"]
+    ).update(status="offline")
+
+
 def generate_personas(
     count: int,
     services: list[str] | None = None,

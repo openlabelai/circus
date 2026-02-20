@@ -35,6 +35,7 @@ import type {
   PersonaSummary,
   Project,
   Device,
+  Proxy,
   Task,
   TaskResultRecord,
   StatusOverview,
@@ -266,6 +267,38 @@ export async function getDevices(): Promise<Device[]> {
 
 export async function refreshDevices(): Promise<Device[]> {
   return request("/devices/refresh/", { method: "POST" });
+}
+
+export async function updateDeviceMetadata(
+  serial: string,
+  data: { name?: string; bay?: string; slot?: string; location_label?: string; device_ip?: string | null },
+): Promise<Device> {
+  return request(`/devices/${serial}/metadata/`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+// -- Proxies --
+
+export async function getProxies(proxyStatus?: string, country?: string): Promise<{ results: Proxy[] }> {
+  const params = new URLSearchParams();
+  if (proxyStatus) params.set("status", proxyStatus);
+  if (country) params.set("country", country);
+  const qs = params.toString();
+  return request(`/proxies/${qs ? `?${qs}` : ""}`);
+}
+
+export async function createProxy(data: Partial<Proxy>): Promise<Proxy> {
+  return request("/proxies/", { method: "POST", body: JSON.stringify(data) });
+}
+
+export async function updateProxy(id: string, data: Partial<Proxy>): Promise<Proxy> {
+  return request(`/proxies/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
+}
+
+export async function deleteProxy(id: string): Promise<void> {
+  await fetch(`${API_URL}/proxies/${id}/`, { method: "DELETE" });
 }
 
 // -- Tasks --
