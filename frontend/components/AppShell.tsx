@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const globalNavItems = [
   { href: "/", label: "Dashboard" },
-  { href: "/projects", label: "Projects" },
+  { href: "/campaigns", label: "Campaigns" },
   { href: "/artist-profiles", label: "Artist Profiles" },
   { href: "/devices", label: "Devices" },
   { href: "/accounts", label: "Accounts" },
@@ -16,12 +16,12 @@ const globalNavItems = [
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Any route under /projects/[id] (including the detail page itself)
-  // The project nested layout handles its own sidebar for these routes
-  const isProjectRoute = /^\/projects\/[^/]+/.test(pathname) && pathname !== "/projects";
+  // Any route under /campaigns/[id] (including the detail page itself)
+  // The campaign nested layout handles its own sidebar for these routes
+  const isCampaignRoute = /^\/campaigns\/[^/]+/.test(pathname) && pathname !== "/campaigns";
 
-  if (isProjectRoute) {
-    // Project nested layout provides its own sidebar
+  if (isCampaignRoute) {
+    // Campaign nested layout provides its own sidebar
     return <>{children}</>;
   }
 

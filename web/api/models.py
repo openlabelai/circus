@@ -61,7 +61,7 @@ class ArtistProfile(models.Model):
         return f"{self.artist_name} ({self.status})"
 
 
-class Project(models.Model):
+class Campaign(models.Model):
     STATUS_CHOICES = [
         ("planning", "Planning"),
         ("warming", "Warming"),
@@ -78,7 +78,7 @@ class Project(models.Model):
     # Artist profile
     artist_profile = models.ForeignKey(
         ArtistProfile, on_delete=models.SET_NULL,
-        null=True, blank=True, related_name="projects",
+        null=True, blank=True, related_name="campaigns",
     )
 
     # Timeline
@@ -113,7 +113,7 @@ class Project(models.Model):
 
 class Persona(models.Model):
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="personas", null=True, blank=True)
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name="personas", null=True, blank=True)
     name = models.CharField(max_length=200, blank=True, default="")
     age = models.IntegerField(default=25)
     gender = models.CharField(max_length=50, blank=True, default="")
@@ -305,7 +305,7 @@ class Proxy(models.Model):
 
 class Task(models.Model):
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks", null=True, blank=True)
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name="tasks", null=True, blank=True)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True, default="")
     target_package = models.CharField(max_length=300, blank=True, default="")
@@ -323,7 +323,7 @@ class Task(models.Model):
 
 
 class TaskResult(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.SET_NULL, related_name="results", null=True, blank=True)
+    campaign = models.ForeignKey(Campaign, on_delete=models.SET_NULL, related_name="results", null=True, blank=True)
     task_id = models.CharField(max_length=8)
     task_name = models.CharField(max_length=200, blank=True, default="")
     device_serial = models.CharField(max_length=200)
@@ -385,7 +385,7 @@ class ScheduledTask(models.Model):
     ]
 
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="schedules", null=True, blank=True)
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name="schedules", null=True, blank=True)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="schedules")
     persona = models.ForeignKey(
         Persona,
@@ -429,7 +429,7 @@ class QueuedRun(models.Model):
     ]
 
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="queued_runs", null=True, blank=True)
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name="queued_runs", null=True, blank=True)
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name="queued_runs")
     schedule = models.ForeignKey(
         ScheduledTask,
@@ -483,7 +483,7 @@ class Agent(models.Model):
     ]
 
     id = models.CharField(max_length=8, primary_key=True, default=_short_uuid)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="agents")
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name="agents")
     persona = models.ForeignKey(Persona, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
     account = models.ForeignKey(Account, on_delete=models.SET_NULL, null=True, blank=True, related_name="agents")
     device_serial = models.CharField(max_length=200, blank=True, default="")

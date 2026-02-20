@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ProjectProvider } from "@/lib/project-context";
+import { CampaignProvider } from "@/lib/campaign-context";
 import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
@@ -12,9 +12,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="flex min-h-screen">
-        <ProjectProvider>
+        <CampaignProvider>
           <AppShell>{children}</AppShell>
-        </ProjectProvider>
+        </CampaignProvider>
+
+
       </body>
     </html>
   );

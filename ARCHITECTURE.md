@@ -264,17 +264,17 @@ All IDs are 8-character hex UUIDs (`uuid.uuid4().hex[:8]`).
 
 | Model | Purpose | Key Relations |
 |-------|---------|---------------|
-| `ArtistProfile` | Artist identity + research output + scraped comments | → Projects |
-| `Project` | Campaign container | → ArtistProfile, Personas, Tasks, Agents |
-| `Persona` | Synthetic fan identity + behavioral profile | → Project, Credentials |
+| `ArtistProfile` | Artist identity + research output + scraped comments | → Campaigns |
+| `Campaign` | Campaign container | → ArtistProfile, Personas, Tasks, Agents |
+| `Persona` | Synthetic fan identity + behavioral profile | → Campaign, Credentials |
 | `Account` | Pre-warmed platform login | → Agents |
 | `Device` | Persistent device metadata (synced from pool) | → Agents |
 | `Proxy` | Proxy connection with health tracking | → Agents |
-| `Agent` | Operational unit binding persona+account+device+proxy | → Project, Persona, Account, Device, Proxy |
-| `Task` | YAML-defined automation task | → Project, Schedules |
-| `ScheduledTask` | Cron/interval/once trigger | → Task, Persona, Project |
+| `Agent` | Operational unit binding persona+account+device+proxy | → Campaign, Persona, Account, Device, Proxy |
+| `Task` | YAML-defined automation task | → Campaign, Schedules |
+| `ScheduledTask` | Cron/interval/once trigger | → Task, Persona, Campaign |
 | `QueuedRun` | Task execution instance with lifecycle | → Task, Schedule, Persona, TaskResult |
-| `TaskResult` | Execution outcome with extraction data | → Project |
+| `TaskResult` | Execution outcome with extraction data | → Campaign |
 | `LLMConfig` | Per-purpose LLM provider/model config | standalone |
 | `ProviderAPIKey` | API key storage | standalone |
 
@@ -287,7 +287,7 @@ All endpoints at `/api/`. Standard DRF ViewSet CRUD unless noted.
 | Resource | Endpoint | Notes |
 |----------|----------|-------|
 | Artist Profiles | `/api/artist-profiles/` | + `/research/`, `/fetch_comments/`, `/clear_comments/`, `/enrich/` |
-| Projects | `/api/projects/` | + `/stats/`, `/spawn_agents/`, `/generate_fans/`, `/start_campaign/` |
+| Campaigns | `/api/campaigns/` | + `/stats/`, `/spawn_agents/`, `/generate_fans/`, `/start_campaign/` |
 | Personas | `/api/personas/` | + `/generate/`, `/assign/`, `/unassign/` |
 | Accounts | `/api/accounts/` | Filter: `?platform=`, `?status=` |
 | Devices | `/api/devices/` | Merged pool+DB; `/refresh/`, `/<serial>/metadata/`, `/<serial>/screen/`, `/<serial>/screen/stream/` |
@@ -300,7 +300,7 @@ All endpoints at `/api/`. Standard DRF ViewSet CRUD unless noted.
 | LLM Config | `/api/llm-config/` | + `/providers/` |
 | Provider Keys | `/api/provider-keys/` | GET/POST + DELETE `/<provider>/` |
 | Warming | `/api/warming/` | `/activate/`, `/deactivate/`, `/status/` |
-| Status | `/api/status/` | Dashboard overview (filterable by `?project=`) |
+| Status | `/api/status/` | Dashboard overview (filterable by `?campaign=`) |
 
 ---
 
@@ -310,22 +310,22 @@ Next.js App Router with dark theme (gray-900 backgrounds, Tailwind CSS).
 
 **Global pages** (sidebar via AppShell):
 - `/` — Dashboard with status overview
-- `/projects` — Project list with stats
+- `/projects` — Campaign list with stats
 - `/artist-profiles` — Artist profile CRUD + research + comment scraping
 - `/devices` — Device table with metadata editing (name, location, IP)
 - `/accounts` — Account pool management (add/status/delete)
 - `/proxies` — Proxy pool management (add/status/delete)
 - `/settings` — LLM config + API key management
 
-**Project sub-pages** (nested layout with project sidebar):
-- `/projects/[id]` — Project overview with stats
-- `/projects/[id]/research` — Artist research for project's profile
-- `/projects/[id]/fans` — Unified synthetic fans view (personas + agents)
-- `/projects/[id]/tasks` — Task management
-- `/projects/[id]/schedules` — Schedule management
-- `/projects/[id]/queue` — Queue monitor
-- `/projects/[id]/results` — Execution results
-- `/projects/[id]/devices` — Project device view
+**Campaign sub-pages** (nested layout with campaign sidebar):
+- `/campaigns/[id]` — Campaign overview with stats
+- `/campaigns/[id]/research` — Artist research for project's profile
+- `/campaigns/[id]/fans` — Unified synthetic fans view (personas + agents)
+- `/campaigns/[id]/tasks` — Task management
+- `/campaigns/[id]/schedules` — Schedule management
+- `/campaigns/[id]/queue` — Queue monitor
+- `/campaigns/[id]/results` — Execution results
+- `/campaigns/[id]/devices` — Campaign device view
 
 ---
 

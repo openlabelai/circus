@@ -16,7 +16,7 @@ from django.db import models
 from django.db.models import Count
 
 from api.models import (
-    Account, Agent, ArtistProfile, Device, LLMConfig, Persona, Project, Proxy,
+    Account, Agent, ArtistProfile, Campaign, Device, LLMConfig, Persona, Proxy,
     QueuedRun, ScheduledTask, ServiceCredential, Task, TaskResult,
 )
 from api.serializers import (
@@ -27,7 +27,7 @@ from api.serializers import (
     LLMConfigSerializer,
     PersonaListSerializer,
     PersonaSerializer,
-    ProjectSerializer,
+    CampaignSerializer,
     ProxySerializer,
     QueuedRunCreateSerializer,
     QueuedRunSerializer,
@@ -37,11 +37,11 @@ from api.serializers import (
 )
 
 
-def _project_filter(request):
-    """Return a dict filter for project scoping from query params."""
-    project_id = request.query_params.get("project")
-    if project_id:
-        return {"project_id": project_id}
+def _campaign_filter(request):
+    """Return a dict filter for campaign scoping from query params."""
+    campaign_id = request.query_params.get("campaign")
+    if campaign_id:
+        return {"campaign_id": campaign_id}
     return {}
 
 
@@ -278,11 +278,11 @@ class ArtistProfileViewSet(viewsets.ModelViewSet):
         return Response(ArtistProfileSerializer(profile).data)
 
 
-class ProjectViewSet(viewsets.ModelViewSet):
-    serializer_class = ProjectSerializer
+class CampaignViewSet(viewsets.ModelViewSet):
+    serializer_class = CampaignSerializer
 
     def get_queryset(self):
-        return Project.objects.annotate(
+        return Campaign.objects.annotate(
             persona_count=Count("personas", distinct=True),
             task_count=Count("tasks", distinct=True),
             schedule_count=Count("schedules", distinct=True),
@@ -306,11 +306,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def stats(self, request, pk=None):
-        project = self.get_object()
+        campaign = self.get_object()
         today = date.today()
 
-        personas = Persona.objects.filter(project=project)
-        today_results = TaskResult.objects.filter(project=project, timestamp__date=today)
+        personas = Persona.objects.filter(campaign=campaign)
+        today_results = TaskResult.objects.filter(campaign=campaign, timestamp__date=today)
         today_total = today_results.count()
         today_success = today_results.filter(success=True).count()
 
@@ -323,9 +323,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         return Response({
             "persona_count": personas.count(),
-            "task_count": Task.objects.filter(project=project).count(),
-            "schedules_active": ScheduledTask.objects.filter(project=project, status="active").count(),
-            "schedules_paused": ScheduledTask.objects.filter(project=project, status="paused").count(),
+            "task_count": Task.objects.filter(campaign=campaign).count(),
+            "schedules_active": ScheduledTask.objects.filter(campaign=campaign, status="active").count(),
+            "schedules_paused": ScheduledTask.objects.filter(campaign=campaign, status="paused").count(),
             "devices_in_use": devices_in_use,
             "results_today": {
                 "total": today_total,
@@ -333,18 +333,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "failed": today_total - today_success,
             },
             "queue": {
-                "queued": QueuedRun.objects.filter(project=project, status="queued").count(),
-                "running": QueuedRun.objects.filter(project=project, status="running").count(),
+                "queued": QueuedRun.objects.filter(campaign=campaign, status="queued").count(),
+                "running": QueuedRun.objects.filter(campaign=campaign, status="running").count(),
             },
         })
 
     @action(detail=True, methods=["post"])
     def spawn_agents(self, request, pk=None):
-        project = self.get_object()
+        campaign = self.get_object()
         platform = request.data.get("platform", "instagram")
 
         # Find personas with assigned devices
-        personas = Persona.objects.filter(project=project).exclude(assigned_device="")
+        personas = Persona.objects.filter(campaign=campaign).exclude(assigned_device="")
 
         if not personas.exists():
             # Auto-match: assign available devices to unassigned personas
@@ -353,11 +353,11 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 d["serial"] for d in list_devices()
                 if d["status"] == "available"
             ]
-            unassigned = Persona.objects.filter(project=project, assigned_device="")
+            unassigned = Persona.objects.filter(campaign=campaign, assigned_device="")
             for persona, serial in zip(unassigned, available_devices):
                 persona.assigned_device = serial
                 persona.save(update_fields=["assigned_device"])
-            personas = Persona.objects.filter(project=project).exclude(assigned_device="")
+            personas = Persona.objects.filter(campaign=campaign).exclude(assigned_device="")
 
         if not personas.exists():
             return Response(
@@ -366,13 +366,13 @@ class ProjectViewSet(viewsets.ModelViewSet):
             )
 
         # Determine starting port offset
-        existing_ports = Agent.objects.filter(project=project).values_list("api_port", flat=True)
+        existing_ports = Agent.objects.filter(campaign=campaign).values_list("api_port", flat=True)
         next_port = max(existing_ports, default=8079) + 1
 
         created = []
         for persona in personas:
             agent, was_created = Agent.objects.get_or_create(
-                project=project,
+                campaign=campaign,
                 device_serial=persona.assigned_device,
                 defaults={
                     "persona": persona,
@@ -390,26 +390,26 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def generate_fans(self, request, pk=None):
-        project = self.get_object()
-        count = request.data.get("count", project.target_persona_count or 1)
-        platform = request.data.get("platform", project.target_platform or "instagram")
+        campaign = self.get_object()
+        count = request.data.get("count", campaign.target_persona_count or 1)
+        platform = request.data.get("platform", campaign.target_platform or "instagram")
 
-        if not project.artist_profile:
+        if not campaign.artist_profile:
             return Response(
-                {"error": "Project needs an artist profile with completed research"},
+                {"error": "Campaign needs an artist profile with completed research"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        artist_profile = project.artist_profile
+        artist_profile = campaign.artist_profile
         artist_profile_data = None
         if artist_profile.status == "completed":
             artist_profile_data = artist_profile.profile_data
-        target_artist = project.target_artist or artist_profile.artist_name
+        target_artist = campaign.target_artist or artist_profile.artist_name
 
         from api.services import generate_personas
         circus_personas = generate_personas(
             count, None,
-            genre=project.genre or None,
+            genre=campaign.genre or None,
             target_artist=target_artist,
             artist_profile_data=artist_profile_data,
         )
@@ -418,7 +418,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         for cp in circus_personas:
             persona = Persona.objects.create(
                 id=cp.id,
-                project=project,
+                campaign=campaign,
                 name=cp.name,
                 age=cp.age,
                 gender=cp.gender,
@@ -464,7 +464,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 )
 
             agent = Agent.objects.create(
-                project=project,
+                campaign=campaign,
                 persona=persona,
                 platform=platform,
                 status="ready",
@@ -476,10 +476,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def start_campaign(self, request, pk=None):
-        project = self.get_object()
-        platform = request.data.get("platform", project.target_platform or "instagram")
+        campaign = self.get_object()
+        platform = request.data.get("platform", campaign.target_platform or "instagram")
 
-        ready_agents = Agent.objects.filter(project=project, status="ready")
+        ready_agents = Agent.objects.filter(campaign=campaign, status="ready")
         if not ready_agents.exists():
             return Response(
                 {"error": "No ready agents to provision"},
@@ -498,7 +498,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         ]
 
         # Determine starting port
-        existing_ports = Agent.objects.filter(project=project).exclude(
+        existing_ports = Agent.objects.filter(campaign=campaign).exclude(
             api_port=8080
         ).values_list("api_port", flat=True)
         next_port = max(existing_ports, default=8079) + 1
@@ -525,7 +525,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
             agent.save()
             provisioned += 1
 
-        remaining = Agent.objects.filter(project=project, status="ready").count()
+        remaining = Agent.objects.filter(campaign=campaign, status="ready").count()
         return Response({
             "provisioned": provisioned,
             "remaining_ready": remaining,
@@ -551,7 +551,7 @@ class AgentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Agent.objects.select_related("persona", "account", "device").all()
-        return qs.filter(**_project_filter(self.request))
+        return qs.filter(**_campaign_filter(self.request))
 
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
@@ -676,7 +676,7 @@ class PersonaViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        return qs.filter(**_project_filter(self.request))
+        return qs.filter(**_campaign_filter(self.request))
 
     def perform_create(self, serializer):
         instance = serializer.save()
@@ -699,19 +699,19 @@ class PersonaViewSet(viewsets.ModelViewSet):
         genre = request.data.get("genre", None)
         archetype = request.data.get("archetype", None)
         target_artist = request.data.get("target_artist", None)
-        project_id = request.data.get("project", None)
+        campaign_id = request.data.get("campaign", None)
 
-        # Look up the project's artist profile for enrichment
+        # Look up the campaign's artist profile for enrichment
         artist_profile_data = None
-        if project_id:
+        if campaign_id:
             try:
-                project = Project.objects.get(id=project_id)
-                if project.artist_profile and project.artist_profile.status == "completed":
-                    artist_profile_data = project.artist_profile.profile_data
+                campaign = Campaign.objects.get(id=campaign_id)
+                if campaign.artist_profile and campaign.artist_profile.status == "completed":
+                    artist_profile_data = campaign.artist_profile.profile_data
                     # Auto-fill target_artist from profile if not explicitly provided
-                    if not target_artist and project.artist_profile.artist_name:
-                        target_artist = project.artist_profile.artist_name
-            except Project.DoesNotExist:
+                    if not target_artist and campaign.artist_profile.artist_name:
+                        target_artist = campaign.artist_profile.artist_name
+            except Campaign.DoesNotExist:
                 pass
 
         from api.services import generate_personas
@@ -728,7 +728,7 @@ class PersonaViewSet(viewsets.ModelViewSet):
         for cp in circus_personas:
             persona = Persona.objects.create(
                 id=cp.id,
-                project_id=project_id,
+                campaign_id=campaign_id,
                 name=cp.name,
                 age=cp.age,
                 gender=cp.gender,
@@ -810,7 +810,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = super().get_queryset()
-        return qs.filter(**_project_filter(self.request))
+        return qs.filter(**_campaign_filter(self.request))
 
     def perform_create(self, serializer):
         instance = serializer.save()
@@ -843,7 +843,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         if background:
             run = QueuedRun.objects.create(
                 task=task,
-                project=task.project,
+                campaign=task.campaign,
                 device_serial=device_serial or "",
                 max_retries=task.retry_count,
             )
@@ -859,7 +859,7 @@ class TaskViewSet(viewsets.ModelViewSet):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         # Save to DB
         TaskResult.objects.create(
-            project=task.project,
+            campaign=task.campaign,
             task_id=result_data["task_id"],
             task_name=task.name,
             device_serial=result_data["device_serial"],
@@ -885,7 +885,7 @@ class TaskViewSet(viewsets.ModelViewSet):
         # Save each result to DB
         for r in summary.get("results", []):
             TaskResult.objects.create(
-                project=task.project,
+                campaign=task.campaign,
                 task_id=r["task_id"],
                 task_name=task.name,
                 device_serial=r["device_serial"],
@@ -903,7 +903,7 @@ class TaskResultViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = TaskResultSerializer
 
     def get_queryset(self):
-        qs = TaskResult.objects.filter(**_project_filter(self.request))
+        qs = TaskResult.objects.filter(**_campaign_filter(self.request))
         date_str = self.request.query_params.get("date")
         task_id = self.request.query_params.get("task_id")
         if date_str:
@@ -1020,7 +1020,7 @@ def status_overview(request):
         s = d["status"]
         device_counts[s] = device_counts.get(s, 0) + 1
 
-    pf = _project_filter(request)
+    pf = _campaign_filter(request)
     today = date.today()
     today_results = TaskResult.objects.filter(timestamp__date=today, **pf)
     today_total = today_results.count()
@@ -1058,7 +1058,7 @@ class ScheduledTaskViewSet(viewsets.ModelViewSet):
     serializer_class = ScheduledTaskSerializer
 
     def get_queryset(self):
-        qs = super().get_queryset().filter(**_project_filter(self.request))
+        qs = super().get_queryset().filter(**_campaign_filter(self.request))
         is_warming = self.request.query_params.get("is_warming")
         if is_warming is not None:
             qs = qs.filter(is_warming=is_warming.lower() in ("true", "1"))
@@ -1113,7 +1113,7 @@ class QueuedRunViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         qs = QueuedRun.objects.select_related("task", "persona", "schedule").filter(
-            **_project_filter(self.request)
+            **_campaign_filter(self.request)
         )
         run_status = self.request.query_params.get("status")
         task_id = self.request.query_params.get("task_id")
@@ -1163,7 +1163,7 @@ class QueuedRunViewSet(viewsets.ReadOnlyModelViewSet):
 
         run = QueuedRun.objects.create(
             task=task,
-            project=task.project,
+            campaign=task.campaign,
             persona=persona,
             device_serial=data.get("device_serial", ""),
             priority=data.get("priority", 0),
@@ -1287,7 +1287,7 @@ def warming_activate(request):
             cron = _random_cron(persona.active_hours_start, persona.active_hours_end)
             schedule = ScheduledTask.objects.create(
                 task=task,
-                project=persona.project,
+                campaign=persona.campaign,
                 persona=persona,
                 device_serial=persona.assigned_device,
                 trigger_type="cron",

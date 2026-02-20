@@ -12,10 +12,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-/** Append ?project=<id> (and any extra params) to a path. */
-function withProject(path: string, projectId?: string, extra?: Record<string, string>): string {
+/** Append ?campaign=<id> (and any extra params) to a path. */
+function withCampaign(path: string, campaignId?: string, extra?: Record<string, string>): string {
   const params = new URLSearchParams();
-  if (projectId) params.set("project", projectId);
+  if (campaignId) params.set("campaign", campaignId);
   if (extra) {
     for (const [k, v] of Object.entries(extra)) {
       if (v) params.set(k, v);
@@ -33,7 +33,7 @@ import type {
   ArtistProfile,
   Persona,
   PersonaSummary,
-  Project,
+  Campaign,
   Device,
   Proxy,
   Task,
@@ -82,38 +82,38 @@ export async function enrichArtistAPIs(id: string): Promise<ArtistProfile> {
   return request(`/artist-profiles/${id}/enrich/`, { method: "POST" });
 }
 
-// -- Projects --
+// -- Campaigns --
 
-export async function getProjects(): Promise<{ results: Project[] }> {
-  return request("/projects/");
+export async function getCampaigns(): Promise<{ results: Campaign[] }> {
+  return request("/campaigns/");
 }
 
-export async function getProject(id: string): Promise<Project> {
-  return request(`/projects/${id}/`);
+export async function getCampaign(id: string): Promise<Campaign> {
+  return request(`/campaigns/${id}/`);
 }
 
-export async function createProject(data: Partial<Project>): Promise<Project> {
-  return request("/projects/", { method: "POST", body: JSON.stringify(data) });
+export async function createCampaign(data: Partial<Campaign>): Promise<Campaign> {
+  return request("/campaigns/", { method: "POST", body: JSON.stringify(data) });
 }
 
-export async function updateProject(id: string, data: Partial<Project>): Promise<Project> {
-  return request(`/projects/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
+export async function updateCampaign(id: string, data: Partial<Campaign>): Promise<Campaign> {
+  return request(`/campaigns/${id}/`, { method: "PATCH", body: JSON.stringify(data) });
 }
 
-export async function deleteProject(id: string): Promise<void> {
-  await fetch(`${API_URL}/projects/${id}/`, { method: "DELETE" });
+export async function deleteCampaign(id: string): Promise<void> {
+  await fetch(`${API_URL}/campaigns/${id}/`, { method: "DELETE" });
 }
 
-import type { ProjectStats } from "./types";
+import type { CampaignStats } from "./types";
 
-export async function getProjectStats(id: string): Promise<ProjectStats> {
-  return request(`/projects/${id}/stats/`);
+export async function getCampaignStats(id: string): Promise<CampaignStats> {
+  return request(`/campaigns/${id}/stats/`);
 }
 
 // -- Personas --
 
-export async function getPersonas(projectId?: string): Promise<{ results: PersonaSummary[] }> {
-  return request(withProject("/personas/", projectId));
+export async function getPersonas(campaignId?: string): Promise<{ results: PersonaSummary[] }> {
+  return request(withCampaign("/personas/", campaignId));
 }
 
 export async function getPersona(id: string): Promise<Persona> {
@@ -144,7 +144,7 @@ export async function generatePersonas(
   genre?: string,
   archetype?: string,
   targetArtist?: string,
-  projectId?: string,
+  campaignId?: string,
 ): Promise<PersonaSummary[]> {
   return request("/personas/generate/", {
     method: "POST",
@@ -154,7 +154,7 @@ export async function generatePersonas(
       genre: genre || undefined,
       archetype: archetype || undefined,
       target_artist: targetArtist || undefined,
-      project: projectId || undefined,
+      campaign: campaignId || undefined,
     }),
   });
 }
@@ -172,8 +172,8 @@ export async function unassignPersona(id: string): Promise<any> {
 
 // -- Agents --
 
-export async function getAgents(projectId?: string): Promise<{ results: Agent[] }> {
-  return request(withProject("/agents/", projectId));
+export async function getAgents(campaignId?: string): Promise<{ results: Agent[] }> {
+  return request(withCampaign("/agents/", campaignId));
 }
 
 export async function getAgent(id: string): Promise<Agent> {
@@ -207,31 +207,31 @@ export async function executeAgentAction(
 }
 
 export async function spawnAgents(
-  projectId: string,
+  campaignId: string,
   platform?: string,
 ): Promise<Agent[]> {
-  return request(`/projects/${projectId}/spawn_agents/`, {
+  return request(`/campaigns/${campaignId}/spawn_agents/`, {
     method: "POST",
     body: JSON.stringify({ platform: platform || "instagram" }),
   });
 }
 
 export async function generateFans(
-  projectId: string,
+  campaignId: string,
   count: number,
   platform?: string,
 ): Promise<Agent[]> {
-  return request(`/projects/${projectId}/generate_fans/`, {
+  return request(`/campaigns/${campaignId}/generate_fans/`, {
     method: "POST",
     body: JSON.stringify({ count, platform: platform || undefined }),
   });
 }
 
 export async function startCampaign(
-  projectId: string,
+  campaignId: string,
   platform?: string,
 ): Promise<{ provisioned: number; remaining_ready: number }> {
-  return request(`/projects/${projectId}/start_campaign/`, {
+  return request(`/campaigns/${campaignId}/start_campaign/`, {
     method: "POST",
     body: JSON.stringify({ platform: platform || undefined }),
   });
@@ -303,8 +303,8 @@ export async function deleteProxy(id: string): Promise<void> {
 
 // -- Tasks --
 
-export async function getTasks(projectId?: string): Promise<{ results: Task[] }> {
-  return request(withProject("/tasks/", projectId));
+export async function getTasks(campaignId?: string): Promise<{ results: Task[] }> {
+  return request(withCampaign("/tasks/", campaignId));
 }
 
 export async function getTask(id: string): Promise<Task> {
@@ -343,8 +343,8 @@ export async function runTaskAll(id: string, deviceFilter?: string[]): Promise<a
 
 // -- Results --
 
-export async function getResults(date?: string, projectId?: string): Promise<{ results: TaskResultRecord[] }> {
-  return request(withProject("/results/", projectId, date ? { date } : undefined));
+export async function getResults(date?: string, campaignId?: string): Promise<{ results: TaskResultRecord[] }> {
+  return request(withCampaign("/results/", campaignId, date ? { date } : undefined));
 }
 
 export async function syncResults(): Promise<{ imported: number }> {
@@ -353,8 +353,8 @@ export async function syncResults(): Promise<{ imported: number }> {
 
 // -- Schedules --
 
-export async function getSchedules(projectId?: string): Promise<{ results: ScheduledTask[] }> {
-  return request(withProject("/schedules/", projectId));
+export async function getSchedules(campaignId?: string): Promise<{ results: ScheduledTask[] }> {
+  return request(withCampaign("/schedules/", campaignId));
 }
 
 export async function getSchedule(id: string): Promise<ScheduledTask> {
@@ -387,14 +387,14 @@ export async function getQueue(params?: {
   status?: string;
   task_id?: string;
   schedule?: string;
-}, projectId?: string): Promise<{ results: QueuedRun[] }> {
+}, campaignId?: string): Promise<{ results: QueuedRun[] }> {
   const extra: Record<string, string> = {};
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       if (v) extra[k] = v;
     }
   }
-  return request(withProject("/queue/", projectId, extra));
+  return request(withCampaign("/queue/", campaignId, extra));
 }
 
 export async function enqueueTask(data: {
@@ -464,6 +464,6 @@ export async function deleteProviderKey(provider: string): Promise<any> {
 
 // -- Status --
 
-export async function getStatus(projectId?: string): Promise<StatusOverview> {
-  return request(withProject("/status/", projectId));
+export async function getStatus(campaignId?: string): Promise<StatusOverview> {
+  return request(withCampaign("/status/", campaignId));
 }

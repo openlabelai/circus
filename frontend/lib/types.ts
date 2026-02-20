@@ -37,7 +37,7 @@ export interface ArtistProfileSummary {
   status: string;
 }
 
-export interface Project {
+export interface Campaign {
   id: string;
   name: string;
   description: string;
@@ -72,7 +72,7 @@ export interface Project {
   updated_at: string;
 }
 
-export interface ProjectStats {
+export interface CampaignStats {
   persona_count: number;
   task_count: number;
   schedules_active: number;
@@ -275,7 +275,7 @@ export interface Account {
 
 export interface Agent {
   id: string;
-  project: string;
+  campaign: string;
   persona: string | null;
   persona_name: string;
   persona_username: string;

@@ -75,7 +75,7 @@ frontend/            # Next.js app
   app/               # App router pages
     artist-profiles/ # Artist profile list (single page, no [id] detail route)
     personas/        # Persona CRUD
-    projects/        # Project management
+    campaigns/        # Campaign management
     devices/         # Device management (with metadata edit)
     accounts/        # Account pool management
     proxies/         # Proxy pool management
@@ -95,7 +95,7 @@ SQLite at `web/db.sqlite3`. Mounted via Docker volume so shared between host and
 ## Key Models (web/api/models.py)
 
 - `ArtistProfile` — artist identity, social links, research output, scraped comments, profile_image_url (auto-fetched from YouTube)
-- `Project` — campaign container linking artist profile, personas, tasks
+- `Campaign` — campaign container linking artist profile, personas, tasks
 - `Persona` — fake fan account with demographics, behavior, credentials
 - `Account` — pool of pre-warmed platform accounts (instagram/tiktok/youtube)
 - `Agent` — synthetic fan = persona + account + device + proxy (the operational unit)
